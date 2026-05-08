@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 
   # Admin Dashboard UI Design
 
@@ -9,3 +10,6 @@
 
   Run `npm run dev` to start the development server.
   
+=======
+# Room-management-system
+>>>>>>> e50e3de4bc7fb8b2fea65e34fe12dd4d1422734e
