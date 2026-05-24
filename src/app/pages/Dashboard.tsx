@@ -93,7 +93,10 @@ export function Dashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
+          <p className="text-sm text-muted-foreground font-medium">Loading dashboard...</p>
+        </div>
       </div>
     );
   }
@@ -111,7 +114,7 @@ export function Dashboard() {
       {/* Page Title + Actions */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-semibold text-foreground">Dashboard</h1>
+          <h1 className="text-3xl font-semibold text-foreground tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">Overview of your rental properties</p>
         </div>
         <Button
@@ -162,22 +165,22 @@ export function Dashboard() {
 
       {/* Alerts Panel */}
       {alerts.length > 0 && (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-border flex items-center gap-3">
-            <div className="p-2 bg-red-100 rounded-lg">
-              <Zap className="w-5 h-5 text-red-600" />
+        <div className="rounded-3xl border border-foreground/10 bg-card shadow-brutal overflow-hidden">
+          <div className="p-5 border-b border-foreground/10 flex items-center gap-3">
+            <div className="p-2.5 bg-primary rounded-xl">
+              <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-foreground">System Alerts</h2>
               <p className="text-sm text-muted-foreground">{alerts.length} item{alerts.length > 1 ? 's' : ''} require attention</p>
             </div>
           </div>
-          <div className="divide-y divide-border max-h-80 overflow-y-auto">
+          <div className="divide-y divide-foreground/5 max-h-80 overflow-y-auto">
             {alerts.map((alert: any, i: number) => (
               <div key={i} className="p-4 flex items-center gap-4 hover:bg-muted/30 transition-colors">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  alert.severity === 'danger' ? 'bg-red-500' :
-                  alert.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
+                <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                  alert.severity === 'danger' ? 'bg-destructive' :
+                  alert.severity === 'warning' ? 'bg-orange-500' : 'bg-primary'
                 }`} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{alert.title}</p>
@@ -199,22 +202,22 @@ export function Dashboard() {
 
       {/* Expiring Contracts Alert */}
       {expiringContracts.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200 shadow-sm overflow-hidden">
-          <div className="p-4 bg-amber-100/60 border-b border-amber-200 flex items-center gap-3">
-            <div className="p-2 bg-amber-500 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-white" />
+        <div className="rounded-3xl border border-foreground/10 bg-card shadow-brutal overflow-hidden">
+          <div className="p-5 bg-primary/20 border-b border-foreground/10 flex items-center gap-3">
+            <div className="p-2.5 bg-secondary rounded-xl">
+              <AlertTriangle className="w-5 h-5 text-secondary-foreground" />
             </div>
             <div>
-              <h2 className="text-lg font-semibold text-amber-900">Contracts Expiring Soon</h2>
-              <p className="text-sm text-amber-700">{expiringContracts.length} contract{expiringContracts.length > 1 ? 's' : ''} expiring within 30 days</p>
+              <h2 className="text-lg font-semibold text-foreground">Contracts Expiring Soon</h2>
+              <p className="text-sm text-muted-foreground">{expiringContracts.length} contract{expiringContracts.length > 1 ? 's' : ''} expiring within 30 days</p>
             </div>
           </div>
-          <div className="divide-y divide-amber-200">
+          <div className="divide-y divide-foreground/5">
             {expiringContracts.map((contract: any) => (
-              <div key={contract.id} className="p-4 flex items-center justify-between hover:bg-amber-50/50 transition-colors">
+              <div key={contract.id} className="p-4 flex items-center justify-between hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-white rounded-lg border border-amber-200">
-                    <Clock className="w-4 h-4 text-amber-600" />
+                  <div className="p-2.5 bg-muted rounded-xl border border-foreground/10">
+                    <Clock className="w-4 h-4 text-foreground" />
                   </div>
                   <div>
                     <p className="font-medium text-foreground">{contract.tenant}</p>
@@ -223,10 +226,10 @@ export function Dashboard() {
                 </div>
                 <div className="flex items-center gap-4">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-amber-700">
+                    <p className="text-sm font-medium text-foreground">
                       {contract.daysRemaining} day{contract.daysRemaining !== 1 ? 's' : ''} left
                     </p>
-                    <p className="text-xs text-muted-foreground">Expires {contract.endDate}</p>
+                    <p className="text-xs text-muted-foreground">Expires {(contract.endDate || "").substring(0, 10)}</p>
                   </div>
                   <Button
                     variant="primary"
@@ -243,39 +246,40 @@ export function Dashboard() {
       )}
 
       {/* Chart — Income + Paid/Unpaid */}
-      <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <div className="rounded-3xl border border-foreground/10 bg-card p-6 shadow-brutal">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground">Monthly Income</h2>
             <p className="text-sm text-muted-foreground">Last 6 months revenue (paid vs unpaid)</p>
           </div>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-600 inline-block" /> Paid</span>
-            <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-400 inline-block" /> Unpaid</span>
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-secondary inline-block" /> Paid</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-md bg-destructive inline-block" /> Unpaid</span>
           </div>
         </div>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={monthlyData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-            <XAxis dataKey="month" stroke="#6b7280" />
-            <YAxis stroke="#6b7280" />
+            <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.18 0.01 270 / 10%)" />
+            <XAxis dataKey="month" stroke="oklch(0.45 0.01 270)" fontSize={12} />
+            <YAxis stroke="oklch(0.45 0.01 270)" fontSize={12} />
             <Tooltip 
               contentStyle={{ 
-                backgroundColor: '#ffffff', 
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                backgroundColor: 'oklch(1 0 0)', 
+                border: '2px solid oklch(0.18 0.01 270)',
+                borderRadius: '16px',
+                boxShadow: '0 3px 0 0 oklch(0.18 0.01 270)',
+                fontFamily: 'Space Grotesk, system-ui'
               }}
             />
-            <Bar dataKey="paid" stackId="a" fill="#2563eb" radius={[0, 0, 0, 0]} name="Paid" />
-            <Bar dataKey="unpaid" stackId="a" fill="#f87171" radius={[8, 8, 0, 0]} name="Unpaid" />
+            <Bar dataKey="paid" stackId="a" fill="oklch(0.18 0.01 270)" radius={[0, 0, 0, 0]} name="Paid" />
+            <Bar dataKey="unpaid" stackId="a" fill="oklch(0.577 0.245 27.325)" radius={[8, 8, 0, 0]} name="Unpaid" />
           </BarChart>
         </ResponsiveContainer>
       </div>
 
       {/* Pending/Overdue Payments Table */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+      <div className="rounded-3xl border border-foreground/10 bg-card shadow-brutal overflow-hidden">
+        <div className="p-6 border-b border-foreground/10">
           <h2 className="text-xl font-semibold text-foreground">Payments Requiring Action</h2>
           <p className="text-sm text-muted-foreground">Pending and overdue payments</p>
         </div>
@@ -283,17 +287,17 @@ export function Dashboard() {
           <table className="w-full">
             <thead className="bg-muted/50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Tenant</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Room</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Rent</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Utility</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Late Fee</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Due Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Tenant</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Room</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Rent</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Utility</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Late Fee</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Due Date</th>
+                <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {pendingPayments.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-8 text-center text-muted-foreground">
@@ -310,10 +314,10 @@ export function Dashboard() {
                       {payment.utilityAmount > 0 ? `$${payment.utilityAmount}` : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
-                      {payment.lateFee > 0 ? <span className="text-red-600">${payment.lateFee}</span> : '—'}
+                      {payment.lateFee > 0 ? <span className="text-destructive font-medium">${payment.lateFee}</span> : '—'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-foreground">${payment.total}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{payment.dueDate}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{(payment.dueDate || "").substring(0, 10)}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant={payment.status === 'overdue' ? 'danger' : 'warning'}>
                         {payment.status === 'overdue' ? 'Overdue' : 'Pending'}
@@ -329,14 +333,14 @@ export function Dashboard() {
 
       {/* Renew Contract Modal */}
       {showRenewModal && renewingContract && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-3xl border border-foreground/10 bg-card max-w-md w-full p-6 shadow-brutal">
             <h3 className="text-xl font-semibold text-foreground mb-1">Renew Contract</h3>
             <p className="text-sm text-muted-foreground mb-5">
               {renewingContract.tenant} · Room {renewingContract.room}
             </p>
 
-            <div className="bg-muted/50 rounded-lg p-4 mb-5">
+            <div className="bg-muted/50 rounded-2xl p-4 mb-5 border border-foreground/10">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
                   <span className="text-muted-foreground">Current Rent</span>
@@ -344,11 +348,11 @@ export function Dashboard() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">Expires</span>
-                  <p className="font-semibold text-foreground">{renewingContract.endDate}</p>
+                  <p className="font-semibold text-foreground">{(renewingContract.endDate || "").substring(0, 10)}</p>
                 </div>
-                <div className="col-span-2 pt-2 border-t border-border">
+                <div className="col-span-2 pt-2 border-t border-foreground/10">
                   <span className="text-muted-foreground">New Rent (preview)</span>
-                  <p className="font-semibold text-green-600 text-lg">${newRentPreview}/mo</p>
+                  <p className="font-semibold text-primary text-lg">${newRentPreview}/mo</p>
                 </div>
               </div>
             </div>
@@ -360,7 +364,7 @@ export function Dashboard() {
                   type="number" min="0" max="100" step="0.5"
                   value={renewForm.rentIncrease}
                   onChange={(e) => setRenewForm({ ...renewForm, rentIncrease: parseFloat(e.target.value) || 0 })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-3 border border-foreground/15 rounded-xl bg-background text-foreground focus:outline-none focus:border-foreground transition-all"
                 />
               </div>
               <div>
@@ -368,7 +372,7 @@ export function Dashboard() {
                 <select
                   value={renewForm.durationMonths}
                   onChange={(e) => setRenewForm({ ...renewForm, durationMonths: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full px-4 py-3 border border-foreground/15 rounded-xl bg-background text-foreground focus:outline-none focus:border-foreground transition-all"
                 >
                   <option value={6}>6 months</option>
                   <option value={12}>12 months (1 year)</option>

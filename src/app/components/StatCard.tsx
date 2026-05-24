@@ -10,26 +10,28 @@ interface StatCardProps {
 }
 
 export function StatCard({ title, value, icon: Icon, trend, trendUp, color = "blue" }: StatCardProps) {
-  const colorClasses = {
-    blue: "bg-blue-50 text-blue-600",
-    green: "bg-green-50 text-green-600",
-    orange: "bg-orange-50 text-orange-600",
-    red: "bg-red-50 text-red-600",
+  const colorClasses: Record<string, { card: string; icon: string }> = {
+    blue: { card: "bg-card", icon: "bg-primary text-primary-foreground" },
+    green: { card: "bg-primary", icon: "bg-secondary text-secondary-foreground" },
+    orange: { card: "bg-card", icon: "bg-secondary text-secondary-foreground" },
+    red: { card: "bg-secondary text-secondary-foreground", icon: "bg-primary text-primary-foreground" },
   };
 
+  const styles = colorClasses[color] || colorClasses.blue;
+
   return (
-    <div className="bg-card rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
+    <div className={`rounded-3xl border border-foreground/10 p-6 shadow-brutal transition hover:-translate-y-0.5 ${styles.card}`}>
       <div className="flex items-start justify-between">
         <div className="flex-1">
-          <p className="text-sm text-muted-foreground mb-1">{title}</p>
-          <h3 className="text-2xl font-semibold text-foreground mb-2">{value}</h3>
+          <p className="text-sm text-current/70 mb-1 font-medium">{title}</p>
+          <h3 className="text-2xl font-semibold mb-2">{value}</h3>
           {trend && (
-            <p className={`text-xs ${trendUp ? "text-green-600" : "text-red-600"}`}>
+            <p className={`text-xs font-medium ${trendUp ? "text-primary" : "text-destructive"}`}>
               {trend}
             </p>
           )}
         </div>
-        <div className={`w-12 h-12 rounded-lg flex items-center justify-center ${colorClasses[color]}`}>
+        <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border border-foreground/10 ${styles.icon}`}>
           <Icon className="w-6 h-6" />
         </div>
       </div>

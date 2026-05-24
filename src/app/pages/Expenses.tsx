@@ -74,7 +74,7 @@ export function Expenses() {
   const filteredExpenses = filterCategory === "all" ? expenses : expenses.filter((e: any) => e.category === filterCategory);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
 
   return (
@@ -91,21 +91,21 @@ export function Expenses() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-muted-foreground">Total Expenses</h3>
             <TrendingDown className="w-5 h-5 text-red-500" />
           </div>
           <div className="text-2xl font-bold text-foreground">${totalExpenses.toLocaleString()}</div>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-muted-foreground">Expense Count</h3>
             <DollarSign className="w-5 h-5 text-blue-500" />
           </div>
           <div className="text-2xl font-bold text-foreground">{expenses.length}</div>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-muted-foreground">Categories</h3>
             <TrendingUp className="w-5 h-5 text-green-500" />
@@ -114,7 +114,7 @@ export function Expenses() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
         <h2 className="text-xl font-semibold text-foreground mb-6">Income vs Expenses vs Profit</h2>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={monthlyData}>
@@ -129,8 +129,8 @@ export function Expenses() {
         </ResponsiveContainer>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10">
           <h2 className="text-xl font-semibold text-foreground">Recent Expenses</h2>
           <div className="flex gap-2 mt-4">
             {categories.map(cat => (
@@ -153,16 +153,16 @@ export function Expenses() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {filteredExpenses.map((expense: any) => (
                 <tr key={expense.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{expense.date}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{(expense.date || "").substring(0, 10)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground capitalize">{expense.category}</td>
                   <td className="px-6 py-4 text-sm text-muted-foreground">{expense.description}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-red-600">${expense.amount}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {expense.maintenanceRequestId ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-medium">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-foreground rounded-full text-xs font-medium">
                         <Link2 className="w-3 h-3" />{expense.maintenanceTitle || 'Maintenance'}
                       </span>
                     ) : (
@@ -182,8 +182,8 @@ export function Expenses() {
       </div>
 
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
             <h3 className="text-xl font-semibold text-foreground mb-4">Add Expense</h3>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
             <div className="space-y-4">

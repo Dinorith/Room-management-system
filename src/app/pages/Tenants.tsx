@@ -122,7 +122,7 @@ export function Tenants() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
       </div>
     );
   }
@@ -134,12 +134,22 @@ export function Tenants() {
           <h1 className="text-3xl font-semibold text-foreground">Tenant Management</h1>
           <p className="text-muted-foreground mt-1">Manage all your tenants ({tenants.length} total)</p>
         </div>
-        <Button icon={Plus} variant="primary" onClick={() => { setShowAddTenant(true); fetchRooms(); }}>
+        <Button icon={Plus} variant="primary" onClick={() => {
+          setNewTenant({
+            name: "",
+            phone: "",
+            room: "",
+            moveInDate: new Date().toISOString().split("T")[0],
+            email: ""
+          });
+          setShowAddTenant(true);
+          fetchRooms();
+        }}>
           Add Tenant
         </Button>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">
@@ -152,7 +162,7 @@ export function Tenants() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {tenants.map((tenant: any) => (
                 <tr key={tenant.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -174,7 +184,7 @@ export function Tenants() {
                       <button onClick={() => handleViewTenant(tenant.id)} className="p-2 hover:bg-muted rounded-lg transition-colors" title="View">
                         <Eye className="w-4 h-4 text-muted-foreground" />
                       </button>
-                      <button onClick={() => handleEditOpen(tenant)} className="p-2 hover:bg-blue-50 rounded-lg transition-colors" title="Edit">
+                      <button onClick={() => handleEditOpen(tenant)} className="p-2 hover:bg-primary/10 rounded-lg transition-colors" title="Edit">
                         <Pencil className="w-4 h-4 text-blue-500" />
                       </button>
                       <button onClick={() => handleDelete(tenant.id)} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -191,8 +201,8 @@ export function Tenants() {
 
       {/* Tenant Detail Modal */}
       {selectedTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
             <h3 className="text-xl font-semibold text-foreground mb-4">Tenant Details</h3>
             <div className="space-y-3">
               <div><label className="text-sm text-muted-foreground">Name</label><p className="text-foreground font-medium">{selectedTenant.name}</p></div>
@@ -220,8 +230,8 @@ export function Tenants() {
 
       {/* Add Tenant Modal */}
       {showAddTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-foreground mb-4">Add New Tenant</h3>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
             <div className="space-y-4">
@@ -252,11 +262,11 @@ export function Tenants() {
                 ) : (
                   <select value={newTenant.room}
                     onChange={(e) => setNewTenant({ ...newTenant, room: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
                     <option value="">Select a vacant room...</option>
                     {vacantRooms.map((room: any) => (
                       <option key={room.id} value={room.roomNumber}>
-                        Room {room.roomNumber}
+                        Room {room.roomNumber} (${room.rent}/mo)
                       </option>
                     ))}
                   </select>
@@ -279,8 +289,8 @@ export function Tenants() {
 
       {/* Edit Tenant Modal */}
       {showEditTenant && editTenant && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-foreground mb-4">Edit Tenant</h3>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
             <div className="space-y-4">

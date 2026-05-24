@@ -59,12 +59,13 @@ class ContractController extends Controller
             'endDate' => 'required|date|after:startDate',
             'rentAmount' => 'required|numeric|min:0',
             'terms' => 'nullable|string',
+            'status' => 'sometimes|in:active,draft,expired,terminated',
         ]);
 
         $contract = Contract::create([
             'tenant_id' => $v['tenantId'], 'room_id' => $v['roomId'],
             'start_date' => $v['startDate'], 'end_date' => $v['endDate'],
-            'rent_amount' => $v['rentAmount'], 'status' => 'active',
+            'rent_amount' => $v['rentAmount'], 'status' => $v['status'] ?? 'draft',
             'terms' => $v['terms'] ?? null,
         ]);
 

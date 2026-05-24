@@ -139,7 +139,7 @@ export function Settings() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
 
   return (
@@ -156,8 +156,8 @@ export function Settings() {
       )}
 
       {/* Owner Profile */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border flex items-center gap-3">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
             <User className="w-5 h-5 text-primary-foreground" />
           </div>
@@ -191,10 +191,10 @@ export function Settings() {
 
       {/* Property Settings */}
       {settings && (
-        <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="p-6 border-b border-border flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <CreditCard className="w-5 h-5 text-blue-600" />
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+          <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h2 className="text-xl font-semibold text-foreground">Property Settings</h2>
@@ -248,8 +248,8 @@ export function Settings() {
       )}
 
       {/* Utility Rate Settings */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border flex items-center gap-3">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
           <div className="w-10 h-10 bg-orange-50 rounded-lg flex items-center justify-center">
             <Zap className="w-5 h-5 text-orange-600" />
           </div>
@@ -282,8 +282,8 @@ export function Settings() {
       </div>
 
       {/* Late Fee & Invoice Settings */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border flex items-center gap-3">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
           <div className="w-10 h-10 bg-red-50 rounded-lg flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>
@@ -338,9 +338,9 @@ export function Settings() {
       </div>
 
       {/* Telegram Bot Integration */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
             <MessageCircle className="w-5 h-5 text-blue-500" />
           </div>
           <div className="flex-1">
@@ -356,7 +356,7 @@ export function Settings() {
           </div>
         </div>
         <div className="p-6 space-y-4">
-          <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700 space-y-1">
+          <div className="p-3 bg-primary/10 border border-foreground/10 rounded-lg text-xs text-foreground space-y-1">
             <p><strong>How to set up:</strong></p>
             <p>1. Open Telegram → search <strong>@BotFather</strong> → send <code>/newbot</code> → copy the token</p>
             <p>2. Paste the token below and click <strong>Save Telegram Settings</strong></p>
@@ -402,7 +402,7 @@ export function Settings() {
                 onChange={(e) => setTelegram({ ...telegram, webhookUrl: e.target.value })}
                 className="flex-1 px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm" />
               <button onClick={handleRegisterWebhook} disabled={saving === "webhook"}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium transition-colors whitespace-nowrap disabled:opacity-50">
+                className="px-4 py-2 bg-secondary text-secondary-foreground rounded-xl hover:bg-secondary/90 font-medium transition-colors whitespace-nowrap disabled:opacity-50">
                 {saving === "webhook" ? "Registering…" : "Register Webhook"}
               </button>
             </div>

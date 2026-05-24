@@ -83,7 +83,7 @@ class PaymentController extends Controller
             'paidDate' => 'nullable|date',
             'status' => 'nullable|in:pending,paid,overdue',
             'month' => 'required|string',
-            'paymentMethod' => 'nullable|in:cash,bank_transfer,cheque',
+            'paymentMethod' => 'nullable|in:qr_code,credit_card',
             'dueDate' => 'nullable|date',
         ]);
 
@@ -106,7 +106,7 @@ class PaymentController extends Controller
             'due_date' => $dueDate,
             'paid_date' => $paidDate,
             'status' => $status,
-            'payment_method' => $v['paymentMethod'] ?? 'cash',
+            'payment_method' => $v['paymentMethod'] ?? 'qr_code',
             'month' => $v['month'],
             'receipt_number' => $status === 'paid' ? $this->generateReceiptNumber() : null,
         ]);
@@ -123,7 +123,7 @@ class PaymentController extends Controller
             'status' => 'sometimes|in:pending,paid,overdue',
             'paidDate' => 'nullable|date',
             'amount' => 'sometimes|numeric|min:0',
-            'paymentMethod' => 'sometimes|in:cash,bank_transfer,cheque',
+            'paymentMethod' => 'sometimes|in:qr_code,credit_card',
         ]);
 
         $data = [];

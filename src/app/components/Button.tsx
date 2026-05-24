@@ -20,9 +20,9 @@ export function Button({
   className = ""
 }: ButtonProps) {
   const variants = {
-    primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm",
-    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-sm",
-    outline: "border-2 border-border text-foreground hover:bg-muted",
+    primary: "bg-primary text-primary-foreground hover:bg-primary/90 shadow-brutal-sm hover:-translate-y-0.5",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/90 shadow-brutal-sm hover:-translate-y-0.5",
+    outline: "border-2 border-foreground text-foreground hover:bg-foreground hover:text-background",
     ghost: "text-foreground hover:bg-muted",
   };
 
@@ -31,7 +31,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 ${variants[variant]} ${className}`}
     >
       {Icon && <Icon className="w-4 h-4" />}
       {children}

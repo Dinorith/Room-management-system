@@ -9,7 +9,10 @@ export function DashboardLayout() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="h-12 w-12 rounded-xl bg-primary animate-pulse" />
+          <p className="text-sm text-muted-foreground font-medium">Loading...</p>
+        </div>
       </div>
     );
   }

@@ -93,7 +93,7 @@ export function Maintenance() {
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
 
   return (
@@ -118,18 +118,18 @@ export function Maintenance() {
           <div className="text-sm text-muted-foreground mb-2">Pending</div>
           <div className="text-3xl font-bold text-orange-600">{requests.filter(r => r.status === "pending").length}</div>
         </div>
-        <div className="bg-card rounded-lg border border-blue-200 shadow-sm p-6 bg-blue-50/50">
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal p-6 bg-primary/5">
           <div className="text-sm text-muted-foreground mb-2">In Progress</div>
-          <div className="text-3xl font-bold text-blue-600">{requests.filter(r => r.status === "in-progress").length}</div>
+          <div className="text-3xl font-bold text-primary-foreground">{requests.filter(r => r.status === "in-progress").length}</div>
         </div>
         <div className="bg-card rounded-lg border border-green-200 shadow-sm p-6 bg-green-50/50">
           <div className="text-sm text-muted-foreground mb-2">Completed</div>
-          <div className="text-3xl font-bold text-green-600">{requests.filter(r => r.status === "completed").length}</div>
+          <div className="text-3xl font-bold text-primary-foreground">{requests.filter(r => r.status === "completed").length}</div>
         </div>
       </div>
 
       <div className="bg-card rounded-lg border border-border shadow-sm">
-        <div className="p-4 border-b border-border bg-muted/30">
+        <div className="p-4 border-b border-foreground/10 bg-muted/30">
           <div className="flex items-center gap-3">
             <Filter className="w-5 h-5 text-muted-foreground" />
             <span className="text-sm font-semibold text-foreground">Filter by Status:</span>
@@ -144,7 +144,7 @@ export function Maintenance() {
           </div>
         </div>
 
-        <div className="divide-y divide-border">
+        <div className="divide-y divide-foreground/5">
           {requests.length === 0 ? (
             <div className="p-8 text-center"><p className="text-muted-foreground">No maintenance requests found</p></div>
           ) : (
@@ -163,8 +163,8 @@ export function Maintenance() {
                       <span>•</span>
                       <span>Reported by: <span className="font-medium">{request.reportedBy}</span></span>
                       <span>•</span>
-                      <span>{request.reportedDate}</span>
-                      {request.completedDate && (<><span>•</span><span className="text-green-600 font-medium">Completed: {request.completedDate}</span></>)}
+                      <span>{(request.reportedDate || "").substring(0, 10)}</span>
+                      {request.completedDate && (<><span>•</span><span className="text-green-600 font-medium">Completed: {(request.completedDate || "").substring(0, 10)}</span></>)}
                       {(request.cost ?? 0) > 0 && (
                         <>
                           <span>•</span>
@@ -190,7 +190,7 @@ export function Maintenance() {
                         <div className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[140px]">
                           {[{ value: "pending", label: "Pending" }, { value: "in-progress", label: "In Progress" }, { value: "completed", label: "Completed" }].map((s, idx) => (
                             <button key={s.value} onClick={() => handleUpdateStatus(request.id, s.value)}
-                              className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${request.status === s.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted/50"} ${idx < 2 ? "border-b border-border" : ""}`}>
+                              className={`w-full px-4 py-3 text-left text-sm font-medium transition-colors ${request.status === s.value ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted/50"} ${idx < 2 ? "border-b border-foreground/10" : ""}`}>
                               {s.label}
                             </button>
                           ))}
@@ -206,8 +206,8 @@ export function Maintenance() {
       </div>
 
       {showNewModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
             <h3 className="text-xl font-semibold text-foreground mb-4">New Maintenance Request</h3>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
             <div className="space-y-4">
@@ -252,8 +252,8 @@ export function Maintenance() {
       )}
       {/* Complete with Cost Modal */}
       {showCostModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-sm w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-sm w-full p-6 shadow-xl">
             <h3 className="text-xl font-semibold text-foreground mb-2">Complete Maintenance</h3>
             <p className="text-sm text-muted-foreground mb-5">
               Enter the repair cost. If greater than $0, an expense record will be automatically created.
@@ -264,7 +264,7 @@ export function Maintenance() {
                 onChange={(e) => setCostInput(e.target.value)}
                 className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
-            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
+            <div className="mt-2 p-2 bg-primary/10 border border-foreground/10 rounded-lg text-xs text-foreground">
               <strong>💡 Auto-link:</strong> Entering a cost will auto-create a linked expense in the Expenses module.
             </div>
             <div className="mt-5 flex justify-end gap-2">

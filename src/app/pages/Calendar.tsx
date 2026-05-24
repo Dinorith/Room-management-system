@@ -12,7 +12,7 @@ interface CalendarEvent {
 const EVENT_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   payment: { bg: "bg-green-100", text: "text-green-700", border: "border-green-300" },
   maintenance: { bg: "bg-orange-100", text: "text-orange-700", border: "border-orange-300" },
-  "move-in": { bg: "bg-blue-100", text: "text-blue-700", border: "border-blue-300" },
+  "move-in": { bg: "bg-primary/20", text: "text-foreground", border: "border-foreground/15" },
   "move-out": { bg: "bg-purple-100", text: "text-purple-700", border: "border-purple-300" },
 };
 
@@ -137,8 +137,8 @@ export function Calendar() {
         <p className="text-muted-foreground mt-1">View payment schedules and important dates</p>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 flex items-center justify-between border-b border-border">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 flex items-center justify-between border-b border-foreground/10">
           <h2 className="text-2xl font-bold text-foreground">{monthName}</h2>
           <div className="flex items-center gap-2">
             <button onClick={prevMonth} className="p-2 hover:bg-muted rounded-lg transition-colors">
@@ -152,7 +152,7 @@ export function Calendar() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
           </div>
         ) : (
           <div className="p-4">
@@ -170,9 +170,9 @@ export function Calendar() {
                 return (
                   <div
                     key={idx}
-                    className={`min-h-[100px] border-r border-b border-border p-1.5 ${
+                    className={`min-h-[100px] border-r border-b border-foreground/10 p-1.5 ${
                       day ? "bg-card" : "bg-muted/20"
-                    } ${isToday(day!) ? "bg-blue-50/50" : ""}`}
+                    } ${isToday(day!) ? "bg-primary/5" : ""}`}
                   >
                     {day && (
                       <>
@@ -216,7 +216,7 @@ export function Calendar() {
         )}
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm p-4">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal p-4">
         <div className="flex flex-wrap items-center justify-center gap-6">
           {[
             { type: "payment", label: "Payment Due" },

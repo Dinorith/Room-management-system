@@ -10,7 +10,7 @@ export function Rooms() {
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [newRoom, setNewRoom] = useState({ roomNumber: "", type: "standard", rent: "", capacity: "1", amenities: "" });
+  const [newRoom, setNewRoom] = useState({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" });
 
   const fetchRooms = async () => {
     try {
@@ -21,6 +21,24 @@ export function Rooms() {
   };
 
   useEffect(() => { fetchRooms(); }, []);
+
+  const handleRoomTypeChange = (type: string) => {
+    let rent = "250";
+    let capacity = "1";
+    if (type === "deluxe") {
+      rent = "450";
+      capacity = "2";
+    } else if (type === "suite") {
+      rent = "800";
+      capacity = "4";
+    }
+    setNewRoom(prev => ({
+      ...prev,
+      type,
+      rent,
+      capacity
+    }));
+  };
 
   const totalRooms = rooms.length;
   const occupiedRooms = rooms.filter((r: any) => r.status === "occupied").length;
@@ -38,7 +56,7 @@ export function Rooms() {
         amenities: newRoom.amenities ? newRoom.amenities.split(",").map((a: string) => a.trim()) : [],
       });
       setShowAddRoom(false);
-      setNewRoom({ roomNumber: "", type: "standard", rent: "", capacity: "1", amenities: "" });
+      setNewRoom({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" });
       fetchRooms();
     } catch (err: any) {
       setError(err.message || "Failed to add room");
@@ -65,7 +83,7 @@ export function Rooms() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
       </div>
     );
   }
@@ -81,21 +99,21 @@ export function Rooms() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <p className="text-sm text-muted-foreground mb-1">Total Rooms</p>
           <p className="text-2xl font-semibold text-foreground">{totalRooms}</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <p className="text-sm text-muted-foreground mb-1">Occupied</p>
-          <p className="text-2xl font-semibold text-green-600">{occupiedRooms}</p>
+          <p className="text-2xl font-semibold text-primary-foreground">{occupiedRooms}</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
-          <p className="text-sm text-muted-foreground mb-1">Available</p>
-          <p className="text-2xl font-semibold text-blue-600">{availableRooms}</p>
+        <div className="bg-primary rounded-3xl p-6 border border-foreground/10 shadow-brutal">
+          <p className="text-sm text-primary-foreground/70 mb-1">Available</p>
+          <p className="text-2xl font-semibold text-primary-foreground">{availableRooms}</p>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-muted/50">
@@ -108,7 +126,7 @@ export function Rooms() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {rooms.map((room: any) => (
                 <tr key={room.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-foreground">Room {room.roomNumber}</span></td>
@@ -135,8 +153,8 @@ export function Rooms() {
 
       {/* View Room Modal */}
       {selectedRoom && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-brutal">
             <h3 className="text-xl font-semibold text-foreground mb-4">Room Details</h3>
             <div className="space-y-3">
               <div><label className="text-sm text-muted-foreground">Room Number</label><p className="text-foreground font-medium">Room {selectedRoom.roomNumber}</p></div>
@@ -147,7 +165,7 @@ export function Rooms() {
               <div><label className="text-sm text-muted-foreground">Amenities</label>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {(selectedRoom.amenities || []).map((a: string, i: number) => (
-                    <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">{a}</span>
+                    <span key={i} className="px-2 py-0.5 bg-primary/20 text-foreground text-xs rounded-lg font-medium">{a}</span>
                   ))}
                 </div>
               </div>
@@ -162,8 +180,8 @@ export function Rooms() {
 
       {/* Add Room Modal */}
       {showAddRoom && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-brutal">
             <h3 className="text-xl font-semibold text-foreground mb-4">Add New Room</h3>
             {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
             <div className="space-y-4">
@@ -175,8 +193,8 @@ export function Rooms() {
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Type</label>
-                <select value={newRoom.type} onChange={(e) => setNewRoom({ ...newRoom, type: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+                <select value={newRoom.type} onChange={(e) => handleRoomTypeChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
                   <option value="standard">Standard</option>
                   <option value="deluxe">Deluxe</option>
                   <option value="suite">Suite</option>
@@ -202,7 +220,7 @@ export function Rooms() {
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowAddRoom(false); setError(""); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowAddRoom(false); setNewRoom({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" }); setError(""); }}>Cancel</Button>
               <Button variant="primary" onClick={handleAddRoom}>Add Room</Button>
             </div>
           </div>

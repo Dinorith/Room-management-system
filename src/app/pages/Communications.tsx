@@ -48,7 +48,7 @@ export function Communications() {
           title: n.title,
           message: n.message,
           type: n.type,
-          recipients: n.type === "broadcast" ? "All Tenants" : n.type === "telegram" ? "Telegram" : "System",
+          recipients: n.type === "broadcast" ? "All Tenants" : n.type === "telegram" ? "Telegram" : n.type === "booking" ? "Booking Demo" : "System",
           telegramChatId: n.telegram_chat_id || meta?.chat_id || "",
           createdAt: n.createdAt || n.created_at || "",
         };
@@ -116,7 +116,7 @@ export function Communications() {
   const targetedCount = announcements.filter(a => a.type === "targeted").length;
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
 
   return (
@@ -127,39 +127,39 @@ export function Communications() {
           <p className="text-muted-foreground mt-1">Send announcements and updates to tenants</p>
         </div>
         <button onClick={() => setTgBroadcastModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors">
+          className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors">
           <Bot className="w-4 h-4" /> Telegram Broadcast
         </button>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Total</h3><Megaphone className="w-5 h-5 text-blue-500" /></div>
           <div className="text-3xl font-bold text-foreground">{announcements.length}</div>
           <p className="text-xs text-muted-foreground mt-1">All messages</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Broadcast</h3><Users className="w-5 h-5 text-green-500" /></div>
           <div className="text-3xl font-bold text-foreground">{broadcastCount}</div>
           <p className="text-xs text-muted-foreground mt-1">To all tenants</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Targeted</h3><Send className="w-5 h-5 text-purple-500" /></div>
           <div className="text-3xl font-bold text-foreground">{targetedCount}</div>
           <p className="text-xs text-muted-foreground mt-1">Specific rooms</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-blue-200 bg-blue-50/50 shadow-sm">
-          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-blue-700">Telegram</h3><Bot className="w-5 h-5 text-blue-500" /></div>
-          <div className="text-3xl font-bold text-blue-700">{telegramMsgs.length}</div>
-          <p className="text-xs text-blue-600 mt-1">Incoming messages</p>
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
+          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-foreground">Telegram</h3><Bot className="w-5 h-5 text-blue-500" /></div>
+          <div className="text-3xl font-bold text-foreground">{telegramMsgs.length}</div>
+          <p className="text-xs text-primary-foreground mt-1">Incoming messages</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* New Announcement Form */}
-        <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="p-6 border-b border-border flex items-center gap-3">
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+          <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
               <Megaphone className="w-5 h-5 text-primary" />
             </div>
@@ -220,29 +220,34 @@ export function Communications() {
         </div>
 
         {/* All Messages with Telegram tag */}
-        <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="p-6 border-b border-border">
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+          <div className="p-6 border-b border-foreground/10">
             <h2 className="text-xl font-semibold text-foreground">Recent Messages</h2>
             <p className="text-sm text-muted-foreground mt-1">All communications including Telegram</p>
           </div>
-          <div className="divide-y divide-border max-h-[520px] overflow-y-auto">
+          <div className="divide-y divide-foreground/5 max-h-[520px] overflow-y-auto">
             {announcements.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">No messages yet</div>
             ) : (
               announcements.slice(0, 15).map((a) => (
-                <div key={a.id} className={`p-4 hover:bg-muted/30 transition-colors ${a.type === 'telegram' ? 'border-l-2 border-l-blue-400' : ''}`}>
+                <div key={a.id} className={`p-4 hover:bg-muted/30 transition-colors ${a.type === 'telegram' ? 'border-l-2 border-l-blue-400' : a.type === 'booking' ? 'border-l-2 border-l-primary' : ''}`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <h4 className="font-semibold text-foreground text-sm truncate">{a.title}</h4>
                         {a.type === 'telegram' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-700 rounded text-xs font-medium shrink-0">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-foreground rounded text-xs font-medium shrink-0">
                             <Bot className="w-3 h-3" />Telegram
                           </span>
                         )}
                         {a.type === 'telegram_sent' && (
                           <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-medium shrink-0">
                             <Send className="w-3 h-3" />Sent
+                          </span>
+                        )}
+                        {a.type === 'booking' && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded text-xs font-medium shrink-0">
+                            <Megaphone className="w-3 h-3 text-primary-foreground" />Demo Request
                           </span>
                         )}
                       </div>
@@ -255,7 +260,7 @@ export function Communications() {
                     </div>
                     {a.type === 'telegram' && a.telegramChatId && (
                       <button onClick={() => { setReplyModal({ open: true, chatId: a.telegramChatId!, name: a.title }); setReplyText(""); }}
-                        className="flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-xs font-medium shrink-0 transition-colors">
+                        className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary-foreground rounded-lg hover:bg-primary/20 text-xs font-medium shrink-0 transition-colors">
                         <Reply className="w-3 h-3" />Reply
                       </button>
                     )}
@@ -269,8 +274,8 @@ export function Communications() {
 
       {/* Reply Modal */}
       {replyModal.open && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
             <div className="flex items-center gap-2 mb-4">
               <Bot className="w-5 h-5 text-blue-500" />
               <h3 className="text-xl font-semibold text-foreground">Reply via Telegram</h3>
@@ -284,7 +289,7 @@ export function Communications() {
               <button onClick={() => { setReplyModal({ open: false, chatId: "", name: "" }); setErrorMsg(""); }}
                 className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">Cancel</button>
               <button onClick={handleReply} disabled={replySending}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors disabled:opacity-50">
                 <Send className="w-4 h-4" />{replySending ? "Sending..." : "Send Reply"}
               </button>
             </div>
@@ -294,8 +299,8 @@ export function Communications() {
 
       {/* Telegram Broadcast Modal */}
       {tgBroadcastModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 shadow-xl">
+        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
             <div className="flex items-center gap-2 mb-2">
               <Bot className="w-5 h-5 text-blue-500" />
               <h3 className="text-xl font-semibold text-foreground">Telegram Broadcast</h3>
@@ -309,7 +314,7 @@ export function Communications() {
               <button onClick={() => { setTgBroadcastModal(false); setTgBroadcastMsg(""); setErrorMsg(""); }}
                 className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">Cancel</button>
               <button onClick={handleTgBroadcast} disabled={tgBroadcastSending}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 font-medium transition-colors disabled:opacity-50">
+                className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors disabled:opacity-50">
                 <Bot className="w-4 h-4" />{tgBroadcastSending ? "Sending..." : "Send via Telegram"}
               </button>
             </div>

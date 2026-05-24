@@ -31,6 +31,29 @@ Route::middleware('throttle:api')->prefix('auth')->group(function () {
 // Telegram webhook is PUBLIC (Telegram servers call this, no auth token)
 Route::post('/telegram/webhook', [TelegramController::class, 'handleUpdate']);
 
+// Public Booking Demo requests (landing page integration)
+Route::post('/bookings/demo', [NotificationController::class, 'storeDemoBooking']);
+
+// Temporary database inspection route
+Route::get('/db-inspect', function () {
+    return response()->json([
+        'tenants' => \App\Models\Tenant::all()->map(fn($t) => ['id' => $t->id, 'name' => $t->name, 'created_at' => $t->created_at ? $t->created_at->toDateTimeString() : null]),
+        'rooms' => \App\Models\Room::all()->map(fn($r) => ['id' => $r->id, 'room_number' => $r->room_number, 'status' => $r->status, 'tenant_id' => $r->tenant_id]),
+        'payments' => \App\Models\Payment::all()->map(fn($p) => ['id' => $p->id, 'tenant' => $p->tenant->name ?? null, 'amount' => $p->amount, 'month' => $p->month, 'status' => $p->status]),
+        'expenses' => \App\Models\Expense::all()->map(fn($e) => ['id' => $e->id, 'description' => $e->description, 'amount' => $e->amount, 'date' => $e->date]),
+    ]);
+});
+
+// Tenant Portal Integration (Public endpoints for rentflow-app)
+Route::prefix('tenant-portal')->group(function () {
+    Route::post('/login', [\App\Http\Controllers\TenantPortalController::class, 'login']);
+    Route::get('/dashboard/{tenantId}', [\App\Http\Controllers\TenantPortalController::class, 'dashboard']);
+    Route::post('/maintenance', [\App\Http\Controllers\TenantPortalController::class, 'createMaintenance']);
+    Route::post('/payments/{paymentId}/pay', [\App\Http\Controllers\TenantPortalController::class, 'payInvoice']);
+    Route::post('/messages', [\App\Http\Controllers\TenantPortalController::class, 'sendMessage']);
+    Route::post('/contracts/{contractId}/sign', [\App\Http\Controllers\TenantPortalController::class, 'signContract']);
+});
+
 /*
 |--------------------------------------------------------------------------
 | Protected Routes (require Bearer token)

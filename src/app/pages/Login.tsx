@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 
 export function Login() {
   const { login } = useAuth();
@@ -26,30 +27,36 @@ export function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
-      {/* Background decorations */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-indigo-500/10 blur-3xl" />
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative">
+      {/* Decorative shapes */}
+      <div className="absolute top-16 left-16 hidden h-20 w-20 rotate-12 rounded-3xl bg-primary md:block" />
+      <div className="absolute bottom-20 right-20 hidden h-14 w-14 rotate-45 bg-secondary md:block" />
+      <div className="absolute top-1/3 right-1/4 hidden h-8 w-8 rounded-full bg-primary/30 md:block" />
 
-      <div className="relative w-full max-w-md mx-4">
+      {/* Back to website link */}
+      <a
+        href="http://localhost:8081"
+        className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-xl border border-foreground px-4 py-2 text-sm font-medium transition hover:bg-foreground hover:text-background"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Website
+      </a>
+
+      <div className="relative w-full max-w-md">
         {/* Card */}
-        <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-2xl shadow-2xl p-8">
+        <div className="rounded-3xl border border-foreground/10 bg-card p-8 shadow-brutal">
           {/* Logo / Header */}
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/25">
-              <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
+            <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-primary mb-4">
+              <span className="block h-6 w-6 rounded-md bg-foreground" />
             </div>
-            <h1 className="text-2xl font-bold text-white">Admin Dashboard</h1>
-            <p className="text-sm text-blue-200/70 mt-1">Sign in to manage your properties</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">RentFlow</h1>
+            <p className="text-sm text-muted-foreground mt-1">Sign in to manage your properties</p>
           </div>
 
           {/* Error */}
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-200 text-sm text-center">
+            <div className="mb-5 p-3 rounded-xl border border-destructive/30 bg-destructive/10 text-destructive text-sm text-center font-medium">
               {error}
             </div>
           )}
@@ -57,24 +64,24 @@ export function Login() {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-blue-100/80 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-foreground/15 bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground transition-all"
                 placeholder="Enter your email"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-100/80 mb-1.5">Password</label>
+              <label className="block text-sm font-medium text-foreground mb-2">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all"
+                className="w-full px-4 py-3 rounded-xl border border-foreground/15 bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:border-foreground transition-all"
                 placeholder="Enter your password"
                 required
               />
@@ -83,25 +90,25 @@ export function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/25 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="group w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-foreground py-4 text-base font-medium text-background transition-all hover:bg-foreground/90 shadow-brutal-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0"
             >
               {isLoading ? (
                 <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
+                  <span className="h-5 w-5 rounded-md bg-background/30 animate-pulse" />
                   Signing in...
                 </span>
               ) : (
-                "Sign In"
+                <>
+                  Sign In
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </>
               )}
             </button>
           </form>
 
           {/* Footer */}
           <div className="mt-6 text-center">
-            <p className="text-xs text-blue-200/50">
+            <p className="text-xs text-muted-foreground">
               Default: admin@admin.com / password
             </p>
           </div>

@@ -5,15 +5,15 @@ interface BadgeProps {
 
 export function Badge({ children, variant = "default" }: BadgeProps) {
   const variants = {
-    success: "bg-green-100 text-green-700 border-green-200",
-    warning: "bg-orange-100 text-orange-700 border-orange-200",
-    danger: "bg-red-100 text-red-700 border-red-200",
-    info: "bg-blue-100 text-blue-700 border-blue-200",
-    default: "bg-gray-100 text-gray-700 border-gray-200",
+    success: "bg-primary/20 text-primary-foreground border-primary/30",
+    warning: "bg-orange-100 text-orange-800 border-orange-300",
+    danger: "bg-red-100 text-red-800 border-red-300",
+    info: "bg-primary/20 text-primary-foreground border-primary/30",
+    default: "bg-muted text-muted-foreground border-foreground/10",
   };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${variants[variant]}`}>
+    <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs font-semibold border ${variants[variant]}`}>
       {children}
     </span>
   );

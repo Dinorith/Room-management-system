@@ -40,7 +40,7 @@ export function Reports() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
       </div>
     );
   }
@@ -63,39 +63,39 @@ export function Reports() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal hover:shadow-md transition-shadow">
           <p className="text-sm text-muted-foreground mb-1">Year to Date</p>
           <p className="text-3xl font-bold text-foreground">${data.ytdRevenue?.toLocaleString()}</p>
           <p className="text-xs text-green-600 mt-2 font-medium">Net: ${data.netProfit?.toLocaleString()}</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal hover:shadow-md transition-shadow">
           <p className="text-sm text-muted-foreground mb-1">This Month</p>
           <p className="text-3xl font-bold text-foreground">${data.thisMonthIncome?.toLocaleString()}</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal hover:shadow-md transition-shadow">
           <p className="text-sm text-muted-foreground mb-1">Collection Rate</p>
           <p className="text-3xl font-bold text-foreground">{data.collectionRate}%</p>
         </div>
-        <div className="bg-card rounded-xl p-6 border border-border shadow-sm hover:shadow-md transition-shadow">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal hover:shadow-md transition-shadow">
           <p className="text-sm text-muted-foreground mb-1">Occupancy Rate</p>
           <p className="text-3xl font-bold text-foreground">{data.occupancyRate}%</p>
         </div>
       </div>
 
       {/* Download Reports */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white shadow-lg">
+      <div className="bg-secondary text-secondary-foreground rounded-3xl p-6 shadow-brutal">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
             <Download className="w-6 h-6" />
             <div>
               <h2 className="text-lg font-semibold">Download Reports</h2>
-              <p className="text-blue-100 text-sm">Export your financial data</p>
+              <p className="text-secondary-foreground/60 text-sm">Export your financial data</p>
             </div>
           </div>
           <div className="flex gap-3">
             <button
               onClick={exportCSV}
-              className="flex items-center gap-2 px-5 py-2.5 bg-white text-blue-700 rounded-lg font-medium hover:bg-blue-50 transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-2xl font-medium hover:bg-primary/90 transition-colors shadow-brutal-sm"
             >
               <FileText className="w-4 h-4" />
               Export CSV
@@ -107,11 +107,11 @@ export function Reports() {
 
 
       {/* Complete Data Backup */}
-      <div className="bg-card rounded-xl p-6 border border-border shadow-sm">
+      <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Database className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <Database className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h3 className="font-semibold text-foreground">Complete Data Backup</h3>
@@ -133,8 +133,8 @@ export function Reports() {
       </div>
 
       {/* Monthly Income Summary */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-primary" />
             <h2 className="text-xl font-semibold text-foreground">Monthly Income Summary</h2>
@@ -152,12 +152,12 @@ export function Reports() {
                 <th className="px-6 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Collection %</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {data.monthlySummary?.map((month: any, idx: number) => (
                 <tr key={idx} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">{month.month}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">${month.totalIncome?.toLocaleString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">${month.paid?.toLocaleString()}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-foreground">${month.paid?.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-red-500">${month.unpaid?.toLocaleString()}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center gap-3">
@@ -183,8 +183,8 @@ export function Reports() {
       {/* Bottom Cards: Payment Methods + Room Types */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Payment Methods */}
-        <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="p-6 border-b border-border">
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+          <div className="p-6 border-b border-foreground/10">
             <div className="flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-green-500" />
               <h3 className="text-lg font-semibold text-foreground">Payment Methods</h3>
@@ -196,7 +196,13 @@ export function Reports() {
                 <div key={idx} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[idx % COLORS.length] }} />
-                    <span className="text-sm font-medium text-foreground">{method.method}</span>
+                    <span className="text-sm font-medium text-foreground">
+                      {method.method === "qr_code" ? "QR Code" : 
+                       method.method === "cash" ? "Cash" : 
+                       method.method === "bank_transfer" ? "Bank Transfer" : 
+                       method.method === "credit_card" ? "Credit Card" : 
+                       method.method?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
@@ -216,8 +222,8 @@ export function Reports() {
         </div>
 
         {/* Room Type Distribution */}
-        <div className="bg-card rounded-xl border border-border shadow-sm">
-          <div className="p-6 border-b border-border">
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+          <div className="p-6 border-b border-foreground/10">
             <div className="flex items-center gap-2">
               <PieChart className="w-5 h-5 text-blue-500" />
               <h3 className="text-lg font-semibold text-foreground">Room Type Distribution</h3>
@@ -242,8 +248,8 @@ export function Reports() {
       </div>
 
       {/* Financial Overview Card */}
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10">
           <div className="flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-primary" />
             <h3 className="text-lg font-semibold text-foreground">Year-to-Date Financial Overview</h3>
@@ -259,9 +265,9 @@ export function Reports() {
               <p className="text-sm text-red-700 mb-1 font-medium">Total Expenses</p>
               <p className="text-2xl font-bold text-red-700">${data.ytdExpenses?.toLocaleString()}</p>
             </div>
-            <div className="text-center p-4 bg-blue-50 rounded-xl border border-blue-200">
-              <p className="text-sm text-blue-700 mb-1 font-medium">Net Profit</p>
-              <p className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+            <div className="text-center p-4 bg-primary/10 rounded-xl border border-foreground/10">
+              <p className="text-sm text-foreground mb-1 font-medium">Net Profit</p>
+              <p className={`text-2xl font-bold ${data.netProfit >= 0 ? 'text-foreground' : 'text-red-700'}`}>
                 ${data.netProfit?.toLocaleString()}
               </p>
             </div>

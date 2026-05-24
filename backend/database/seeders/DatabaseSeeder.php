@@ -124,7 +124,7 @@ class DatabaseSeeder extends Seeder
                     'amount' => $room->rent, 'due_date' => $m[1],
                     'paid_date' => $isPaid ? $m[2] : null,
                     'status' => $isPaid ? 'paid' : (now()->gt(\Carbon\Carbon::parse($m[1])) ? 'overdue' : 'pending'),
-                    'payment_method' => $isPaid ? 'cash' : null,
+                    'payment_method' => $isPaid ? 'credit_card' : null,
                     'month' => $m[0],
                 ]);
             }
@@ -133,7 +133,7 @@ class DatabaseSeeder extends Seeder
         // Mark some April payments as paid
         Payment::where('month', 'April 2026')
             ->whereIn('tenant_id', [$tenants[0]->id, $tenants[1]->id, $tenants[2]->id])
-            ->update(['status' => 'paid', 'paid_date' => '2026-04-01', 'payment_method' => 'bank_transfer']);
+            ->update(['status' => 'paid', 'paid_date' => '2026-04-01', 'payment_method' => 'qr_code']);
 
         // Create maintenance requests
         MaintenanceRequest::create([

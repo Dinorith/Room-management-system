@@ -42,16 +42,16 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 bg-sidebar border-r border-sidebar-border h-screen sticky top-0 flex flex-col">
+    <aside className="w-64 bg-sidebar h-screen sticky top-0 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Building2 className="w-6 h-6 text-primary-foreground" />
-          </div>
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-sidebar-primary">
+            <span className="block h-4 w-4 rounded-sm bg-sidebar-foreground" />
+          </span>
           <div>
-            <h1 className="text-lg font-semibold text-sidebar-foreground">RentEase</h1>
-            <p className="text-xs text-muted-foreground">Room Management</p>
+            <h1 className="text-lg font-bold tracking-tight text-sidebar-foreground">RentFlow</h1>
+            <p className="text-xs text-sidebar-foreground/50">Room Management</p>
           </div>
         </div>
       </div>
@@ -67,10 +67,10 @@ export function Sidebar() {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                     isActive
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent"
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-brutal-sm"
+                      : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   }`}
                 >
                   <Icon className="w-5 h-5" />
@@ -86,7 +86,7 @@ export function Sidebar() {
       <div className="p-4 border-t border-sidebar-border">
         <button 
           onClick={handleLogout}
-          className="flex items-center gap-3 px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent w-full transition-colors"
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground w-full transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span>Logout</span>

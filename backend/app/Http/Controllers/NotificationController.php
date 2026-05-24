@@ -101,4 +101,35 @@ class NotificationController extends Controller
             'total' => count($v['roomIds']),
         ], "SMS notification queued for {$sent} tenants");
     }
+
+    /**
+     * Store a demo booking request from the public website landing page.
+     */
+    public function storeDemoBooking(Request $request): JsonResponse
+    {
+        $v = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|max:255',
+            'company' => 'nullable|string|max:255',
+            'message' => 'nullable|string',
+        ]);
+
+        $admin = \App\Models\User::first();
+        if (!$admin) {
+            return $this->error('No administrator found to receive the booking.', 'admin_not_found', null, 500);
+        }
+
+        $companyText = $v['company'] ? " (Company: {$v['company']})" : "";
+        $messageText = $v['message'] ? "\n\nMessage: {$v['message']}" : "";
+
+        $notification = Notification::create([
+            'user_id' => $admin->id,
+            'title' => "Booking Request: " . $v['name'],
+            'message' => "Email: {$v['email']}{$companyText}{$messageText}",
+            'type' => 'booking',
+            'read' => false,
+        ]);
+
+        return $this->success($notification, 'Booking request received successfully!', 201);
+    }
 }

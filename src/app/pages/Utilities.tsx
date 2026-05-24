@@ -46,7 +46,7 @@ export function Utilities() {
   const totalCost = utilities.reduce((sum: number, u: any) => sum + parseFloat(u.electricityCost || 0) + parseFloat(u.waterCost || 0), 0);
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
 
   return (
@@ -67,20 +67,20 @@ export function Utilities() {
         </div>
         <div className="bg-card rounded-lg p-6 border border-green-200 shadow-sm bg-green-50/50">
           <p className="text-sm text-muted-foreground mb-2">Total Cost</p>
-          <p className="text-3xl font-bold text-green-600">${totalCost.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-primary-foreground">${totalCost.toFixed(2)}</p>
           <p className="text-xs text-muted-foreground mt-1">All readings</p>
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+      <div className="bg-primary/10 border border-foreground/10 rounded-xl p-6">
         <h3 className="text-lg font-semibold text-blue-900 mb-4">Current Utility Rates</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div><p className="text-sm text-blue-700">Electricity Rate</p><p className="text-xl font-semibold text-blue-900">${rates.electricityRate} per kWh</p></div>
-          <div><p className="text-sm text-blue-700">Water Rate</p><p className="text-xl font-semibold text-blue-900">${rates.waterRate} per m³</p></div>
+          <div><p className="text-sm text-foreground">Electricity Rate</p><p className="text-xl font-semibold text-blue-900">${rates.electricityRate} per kWh</p></div>
+          <div><p className="text-sm text-foreground">Water Rate</p><p className="text-xl font-semibold text-blue-900">${rates.waterRate} per m³</p></div>
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm p-6">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal p-6">
         <h2 className="text-xl font-semibold text-foreground mb-4">Record Monthly Readings</h2>
         <form onSubmit={handleSaveReading} className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -117,8 +117,8 @@ export function Utilities() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="p-6 border-b border-border">
+      <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
+        <div className="p-6 border-b border-foreground/10">
           <h2 className="text-xl font-semibold text-foreground">Monthly Utility Records</h2>
         </div>
         <div className="overflow-x-auto">
@@ -135,7 +135,7 @@ export function Utilities() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Invoice</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-foreground/5">
               {utilities.map((u: any) => (
                 <tr key={u.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">Room {u.room}</td>
