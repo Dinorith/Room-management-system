@@ -28,7 +28,30 @@ The Admin Dashboard is a comprehensive web application designed to manage rental
 - Generate comprehensive financial reports
 - Provide real-time dashboard analytics
 
+### 1.4 Project Scope
+The scope of this project covers the development of an Admin Dashboard and public-facing portal for Property/Rental Management. The system integrates the following key modules:
+- **Authentication & Authorization:** Secure login/registration with role-based access control (Admin, Manager, Staff) and encrypted sessions.
+- **Interactive Dashboard:** Dynamic, real-time analytics displaying occupancy rates, outstanding bills, total revenue, and quick access statistics cards.
+- **Property & Room Management:** Complete inventory management of rooms, their capacities, specifications, pricing types, amenities, and status tracking (vacant, occupied, maintenance).
+- **Tenant Directory:** A structured database of all active and historical tenants with contact info, emergency logs, room histories, and payment trends.
+- **Payment & Invoice Management:** Automatic generation of payment schedules, manual recording of cash/transfer/cheque payments, receipt uploads, late fee tracking, and automated reminders.
+- **Maintenance & Ticket Tracking:** Streamlined coordination of building maintenance issues, assignment to workers, priority categorization, and resolution progress monitoring.
+- **Utility Ledger:** Logging manual meter readings (water and electricity), configuring dynamic rates, auto-calculating usage, and generating transparent utility billing.
+- **Lease & Contract Management:** Drafting rental agreements, attaching PDFs/images, managing renewal rules, termination settlements, and setting up automatic expiration reminders.
+- **Financial Analytics & Reporting:** Comprehensive generation of Income Reports, Expense Reports, Profit & Loss Statements, and Occupancy summaries with PDF/Excel/CSV exports.
+- **Public Tenant Portals:** Secure, lightweight public pages for quick payment submissions and digital contract signatures without requiring a full tenant portal login.
+
+### 1.5 System Limitations
+To maintain a streamlined, secure, and focused application, the following boundaries and limitations are established for the current scope:
+- **Manual Payment Verification:** The system provides tools to log bank transfers, cash, or cheques and upload proof of payment, but does **not** include direct API integration with third-party payment gateways (e.g., Stripe, PayPal, or local credit card processors) for instant online credit card clearing.
+- **Manual Utility Data Input:** Utility consumption calculations are automated, but the meter data must be recorded manually by administrators. Direct IoT/smart meter automatic data syncing is out of scope.
+- **Basic Document Handling:** Lease agreements and receipts are handled as static attachments (PDF/JPEG/PNG). Advanced Optical Character Recognition (OCR) for receipt scanning and direct legally-binding DocuSign/Adobe Sign integrations are not included.
+- **Third-Party Messaging Channels:** Notifications (SMS/Emails) are dispatched via standard webhooks/APIs (like Twilio, Mailgun, or standard SMTP servers) but do not support advanced features such as real-time WebSocket-based in-app chat, or native mobile push notifications.
+- **No Native Mobile App:** The entire platform is a highly responsive web application built with HTML, Tailwind CSS, React, and Laravel. While it scales beautifully on mobile browsers, it does not include standalone native iOS or Android applications on app stores.
+- **Single-Tenant Structure:** The architecture is designed for a single property management entity/landlord. Multi-tenant SaaS capability (allowing multiple independent landlords to subscribe, manage, and isolate their respective properties) is out of scope.
+
 ---
+
 
 ## 2. SYSTEM FEATURES
 
