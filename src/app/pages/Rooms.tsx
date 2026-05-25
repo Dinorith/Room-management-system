@@ -3,14 +3,16 @@ import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
+import RoomTypeService from "../services/RoomTypeService";
 
 export function Rooms() {
   const [rooms, setRooms] = useState<any[]>([]);
+  const [roomTypes, setRoomTypes] = useState<any[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<any>(null);
   const [showAddRoom, setShowAddRoom] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [newRoom, setNewRoom] = useState({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" });
+  const [newRoom, setNewRoom] = useState({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
 
   const fetchRooms = async () => {
     try {
@@ -20,24 +22,38 @@ export function Rooms() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchRooms(); }, []);
+  const fetchRoomTypes = async () => {
+    try {
+      const res = await RoomTypeService.getActive();
+      if (res?.data) {
+        const data = Array.isArray(res.data) ? res.data : res.data.data || [];
+        setRoomTypes(data);
+      }
+    } catch (err) { console.error("Error fetching room types:", err); }
+  };
 
-  const handleRoomTypeChange = (type: string) => {
-    let rent = "250";
-    let capacity = "1";
-    if (type === "deluxe") {
-      rent = "450";
-      capacity = "2";
-    } else if (type === "suite") {
-      rent = "800";
-      capacity = "4";
+  useEffect(() => {
+    fetchRooms();
+    fetchRoomTypes();
+  }, []);
+
+  const handleRoomTypeChange = (roomTypeId: string) => {
+    const selectedType = roomTypes.find((rt: any) => String(rt.id) === roomTypeId);
+    if (selectedType) {
+      setNewRoom(prev => ({
+        ...prev,
+        roomTypeId,
+        rent: String(selectedType.base_price),
+        capacity: String(selectedType.capacity),
+      }));
+    } else {
+      setNewRoom(prev => ({
+        ...prev,
+        roomTypeId,
+        rent: "",
+        capacity: "1",
+      }));
     }
-    setNewRoom(prev => ({
-      ...prev,
-      type,
-      rent,
-      capacity
-    }));
   };
 
   const totalRooms = rooms.length;
@@ -48,15 +64,27 @@ export function Rooms() {
     if (!newRoom.roomNumber.trim() || !newRoom.rent.trim()) return;
     setError("");
     try {
-      await api.createRoom({
+      const payload: any = {
         roomNumber: newRoom.roomNumber,
-        type: newRoom.type,
         rent: parseFloat(newRoom.rent),
         capacity: parseInt(newRoom.capacity) || 1,
         amenities: newRoom.amenities ? newRoom.amenities.split(",").map((a: string) => a.trim()) : [],
-      });
+      };
+
+      // If a room type is selected, send roomTypeId and set type from room type name
+      if (newRoom.roomTypeId) {
+        payload.roomTypeId = newRoom.roomTypeId;
+        const selectedType = roomTypes.find((rt: any) => String(rt.id) === newRoom.roomTypeId);
+        if (selectedType) {
+          payload.type = selectedType.name.toLowerCase();
+        }
+      } else {
+        payload.type = "standard";
+      }
+
+      await api.createRoom(payload);
       setShowAddRoom(false);
-      setNewRoom({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" });
+      setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
       fetchRooms();
     } catch (err: any) {
       setError(err.message || "Failed to add room");
@@ -130,7 +158,7 @@ export function Rooms() {
               {rooms.map((room: any) => (
                 <tr key={room.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-foreground">Room {room.roomNumber}</span></td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground capitalize">{room.type}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground capitalize">{room.roomType?.name || room.type}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">${room.rent}/month</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{room.tenant || "—"}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -158,7 +186,7 @@ export function Rooms() {
             <h3 className="text-xl font-semibold text-foreground mb-4">Room Details</h3>
             <div className="space-y-3">
               <div><label className="text-sm text-muted-foreground">Room Number</label><p className="text-foreground font-medium">Room {selectedRoom.roomNumber}</p></div>
-              <div><label className="text-sm text-muted-foreground">Type</label><p className="text-foreground font-medium capitalize">{selectedRoom.type}</p></div>
+              <div><label className="text-sm text-muted-foreground">Type</label><p className="text-foreground font-medium capitalize">{selectedRoom.roomType?.name || selectedRoom.type}</p></div>
               <div><label className="text-sm text-muted-foreground">Monthly Rent</label><p className="text-foreground font-medium">${selectedRoom.rent}/month</p></div>
               <div><label className="text-sm text-muted-foreground">Capacity</label><p className="text-foreground font-medium">{selectedRoom.capacity} person(s)</p></div>
               <div><label className="text-sm text-muted-foreground">Tenant</label><p className="text-foreground font-medium">{selectedRoom.tenant?.name || "None"}</p></div>
@@ -192,13 +220,17 @@ export function Rooms() {
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Type</label>
-                <select value={newRoom.type} onChange={(e) => handleRoomTypeChange(e.target.value)}
+                <label className="text-sm text-muted-foreground mb-1 block">Room Type</label>
+                <select value={newRoom.roomTypeId} onChange={(e) => handleRoomTypeChange(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
-                  <option value="standard">Standard</option>
-                  <option value="deluxe">Deluxe</option>
-                  <option value="suite">Suite</option>
+                  <option value="">— Select Room Type —</option>
+                  {roomTypes.map((rt: any) => (
+                    <option key={rt.id} value={rt.id}>{rt.name} (${parseFloat(rt.base_price).toFixed(2)}/mo)</option>
+                  ))}
                 </select>
+                {roomTypes.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No room types found. Create room types in Settings first.</p>
+                )}
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Monthly Rent ($) *</label>
@@ -220,7 +252,7 @@ export function Rooms() {
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowAddRoom(false); setNewRoom({ roomNumber: "", type: "standard", rent: "250", capacity: "1", amenities: "" }); setError(""); }}>Cancel</Button>
+              <Button variant="outline" onClick={() => { setShowAddRoom(false); setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" }); setError(""); }}>Cancel</Button>
               <Button variant="primary" onClick={handleAddRoom}>Add Room</Button>
             </div>
           </div>
@@ -229,3 +261,5 @@ export function Rooms() {
     </div>
   );
 }
+
+

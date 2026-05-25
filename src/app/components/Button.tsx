@@ -31,7 +31,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 ${variants[variant]} ${className}`}
+      className={`inline-flex items-center justify-center whitespace-nowrap gap-2 px-5 py-2.5 rounded-2xl font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-y-0 ${variants[variant]} ${className}`}
     >
       {Icon && <Icon className="w-4 h-4" />}
       {children}

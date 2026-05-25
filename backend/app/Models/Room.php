@@ -11,13 +11,18 @@ class Room extends Model
 
     protected $fillable = [
         'room_number', 'type', 'rent', 'capacity', 
-        'status', 'tenant_id', 'amenities'
+        'status', 'tenant_id', 'amenities', 'room_type_id'
     ];
 
     protected $casts = [
         'amenities' => 'array',
         'rent' => 'decimal:2',
     ];
+
+    public function roomType()
+    {
+        return $this->belongsTo(RoomType::class, 'room_type_id');
+    }
 
     public function tenant()
     {

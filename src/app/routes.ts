@@ -13,11 +13,21 @@ import { Reports } from "./pages/Reports";
 import { Calendar } from "./pages/Calendar";
 import { Communications } from "./pages/Communications";
 import { Login } from "./pages/Login";
+import { PublicPaymentPage } from "./pages/PublicPaymentPage";
+import { PublicContractSignPage } from "./pages/PublicContractSignPage";
 
 export const router = createBrowserRouter([
   {
     path: "/login",
     Component: Login,
+  },
+  {
+    path: "/pay/:paymentId",
+    Component: PublicPaymentPage,
+  },
+  {
+    path: "/sign/:contractId",
+    Component: PublicContractSignPage,
   },
   {
     path: "/",

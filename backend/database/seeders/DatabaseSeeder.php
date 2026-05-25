@@ -174,14 +174,31 @@ class DatabaseSeeder extends Seeder
         // Create utility readings
         $occupiedRooms = ['101', '102', '201', '202', '203', '301', '302', '401'];
         foreach ($occupiedRooms as $rn) {
+            $eUsage = rand(80, 200);
+            $wUsage = rand(10, 30);
+            $eCost = round($eUsage * 0.20, 2);
+            $wCost = round($wUsage * 0.50, 2);
+            $uTotal = round($eCost + $wCost, 2);
+
+            $room = $rooms[$rn];
             Utility::create([
-                'room_id' => $rooms[$rn]->id,
-                'electricity' => rand(80, 200),
-                'water' => rand(10, 30),
+                'room_id' => $room->id,
+                'electricity' => $eUsage,
+                'water' => $wUsage,
                 'month' => 'March 2026',
-                'electricity_cost' => round(rand(80, 200) * 0.20, 2),
-                'water_cost' => round(rand(10, 30) * 0.50, 2),
+                'electricity_cost' => $eCost,
+                'water_cost' => $wCost,
             ]);
+
+            // Auto-link to March 2026 payment in seeder
+            if ($room->tenant_id) {
+                Payment::where('tenant_id', $room->tenant_id)
+                    ->where('month', 'March 2026')
+                    ->update([
+                        'utility_amount' => $uTotal,
+                        'notes' => "Utility: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+                    ]);
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-import { FileText, AlertCircle, Trash2, Plus, RefreshCw, CheckCircle, ShieldCheck, Lock, Smartphone, X, Download, PenTool, Eye } from "lucide-react";
+import { FileText, AlertCircle, Trash2, Plus, RefreshCw, CheckCircle, ShieldCheck, Lock, Smartphone, X, Download, PenTool, Eye, Copy } from "lucide-react";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { useState, useEffect } from "react";
@@ -27,6 +27,15 @@ export function Contracts() {
   const [renewingContract, setRenewingContract] = useState<any>(null);
   const [renewForm, setRenewForm] = useState({ rentIncrease: 0, durationMonths: 12 });
   const [renewLoading, setRenewLoading] = useState(false);
+
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopySignLink = (contractId: string) => {
+    const link = `${window.location.origin}/sign/${contractId}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(contractId);
+    setTimeout(() => setCopiedId(null), 2500);
+  };
 
   const fetchContracts = async () => {
     try {
@@ -209,6 +218,10 @@ export function Contracts() {
     ? (parseFloat(renewingContract.rentAmount) * (1 + renewForm.rentIncrease / 100)).toFixed(2)
     : "0";
 
+  const selectedParts = selectedContract && selectedContract.terms ? selectedContract.terms.split("\n\n[SIGNATURE]:") : [selectedContract?.terms, null];
+  const selectedTermsText = selectedParts[0];
+  const selectedSignatureData = selectedParts[1];
+
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
   }
@@ -316,14 +329,37 @@ export function Contracts() {
                           <Eye className="w-5 h-5 text-muted-foreground" />
                         </button>
                         {contract.status === "draft" && (
-                          <button
-                            onClick={() => handleActivate(contract.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors text-sm font-medium"
-                            title="Activate Contract"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Activate
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleCopySignLink(contract.id)}
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border transition-all text-xs font-semibold ${
+                                copiedId === contract.id 
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                                  : "bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200"
+                              }`}
+                              title="Copy Shareable Signature Link"
+                            >
+                              {copiedId === contract.id ? (
+                                <>
+                                  <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                  Copied!
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3.5 h-3.5 text-amber-600" />
+                                  Copy Link
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleActivate(contract.id)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg transition-colors border border-green-200 text-xs font-semibold"
+                              title="Activate Contract"
+                            >
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                              Activate
+                            </button>
+                          </>
                         )}
                         {contract.status === "active" && (
                           <button
@@ -373,11 +409,23 @@ export function Contracts() {
                 </div>
                 
                 {/* SVG Signature Preview */}
-                <div className="bg-ink text-ink-foreground rounded-xl p-3 h-20 flex items-center justify-center border border-foreground/5 shadow-inner">
-                  <svg viewBox="0 0 200 60" className="w-32 h-10">
-                    <path d="M10 40 C 30 10, 50 50, 70 25 S 110 40, 130 20 S 170 35, 190 22" stroke="#C6FF4D" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-                  </svg>
-                </div>
+                <div className="bg-white rounded-xl p-2 h-20 flex items-center justify-center border border-foreground/5 shadow-inner overflow-hidden">
+                    {selectedSignatureData ? (
+                      selectedSignatureData.startsWith("data:image/") ? (
+                        <img src={selectedSignatureData} alt="Tenant Signature" className="max-h-full max-w-full object-contain" />
+                      ) : (
+                        <span className="text-2xl text-blue-900 font-serif italic tracking-wider">
+                          {selectedSignatureData.startsWith("typed:") ? selectedSignatureData.substring(6) : selectedSignatureData}
+                        </span>
+                      )
+                    ) : selectedContract.status === "active" ? (
+                      <span className="text-2xl text-blue-900 font-serif italic tracking-wider">
+                        {selectedContract.tenant}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No signature found</span>
+                    )}
+                 </div>
                 
                 <div className="text-[11px] space-y-1 font-mono text-emerald-600/90 leading-tight">
                   <p>• PLATFORM: RentFlow App</p>
@@ -396,6 +444,25 @@ export function Contracts() {
                 <p className="text-xs text-amber-700/80 leading-relaxed">
                   Lease has been prepared and sent to the tenant's RentFlow app. Waiting for tenant to digitally sign.
                 </p>
+
+                <button
+                  onClick={() => handleCopySignLink(selectedContract.id)}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 border shadow-sm ${
+                    copiedId === selectedContract.id 
+                      ? "bg-emerald-50 text-emerald-750 border-emerald-200" 
+                      : "bg-white hover:bg-slate-50 text-slate-700 border-slate-200"
+                  }`}
+                >
+                  {copiedId === selectedContract.id ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-emerald-600" /> Copied Signature Link!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-4 h-4 text-slate-500" /> Copy Shareable Sign Link
+                    </>
+                  )}
+                </button>
 
                 <button
                   onClick={() => handleSimulateSign(selectedContract.id)}

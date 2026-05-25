@@ -30,6 +30,8 @@ export function Maintenance() {
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [costInput, setCostInput] = useState("");
 
+  const [rooms, setRooms] = useState<any[]>([]);
+
   const fetchRequests = async () => {
     try {
       const params: Record<string, string> = { limit: "50" };
@@ -40,7 +42,22 @@ export function Maintenance() {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchRequests(); }, [filter]);
+  const fetchRooms = async () => {
+    try {
+      const res = await api.getRooms({ limit: "100" });
+      setRooms(res.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+  }, [filter]);
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
 
   const handleAddRequest = async () => {
     if (!newRequest.room || !newRequest.title || !newRequest.description || !newRequest.reportedBy) return;
@@ -118,13 +135,13 @@ export function Maintenance() {
           <div className="text-sm text-muted-foreground mb-2">Pending</div>
           <div className="text-3xl font-bold text-orange-600">{requests.filter(r => r.status === "pending").length}</div>
         </div>
-        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal p-6 bg-primary/5">
+        <div className="bg-card rounded-lg border border-blue-200 shadow-sm p-6 bg-blue-50/50">
           <div className="text-sm text-muted-foreground mb-2">In Progress</div>
-          <div className="text-3xl font-bold text-primary-foreground">{requests.filter(r => r.status === "in-progress").length}</div>
+          <div className="text-3xl font-bold text-blue-600">{requests.filter(r => r.status === "in-progress").length}</div>
         </div>
         <div className="bg-card rounded-lg border border-green-200 shadow-sm p-6 bg-green-50/50">
           <div className="text-sm text-muted-foreground mb-2">Completed</div>
-          <div className="text-3xl font-bold text-primary-foreground">{requests.filter(r => r.status === "completed").length}</div>
+          <div className="text-3xl font-bold text-green-600">{requests.filter(r => r.status === "completed").length}</div>
         </div>
       </div>
 
@@ -213,9 +230,17 @@ export function Maintenance() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Room Number *</label>
-                <input type="text" placeholder="e.g., 302" value={newRequest.room}
+                <select value={newRequest.room}
                   onChange={(e) => setNewRequest({ ...newRequest, room: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                >
+                  <option value="">Select room...</option>
+                  {rooms.map((r: any) => (
+                    <option key={r.id} value={r.roomNumber}>
+                      Room {r.roomNumber} ({r.type})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Title *</label>

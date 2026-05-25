@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Save, CheckCircle, XCircle } from "lucide-react";
+import { Save, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { api } from "../lib/api";
 
 export function Utilities() {
@@ -8,6 +8,7 @@ export function Utilities() {
   const [rates, setRates] = useState({ electricityRate: 0.20, waterRate: 0.50 });
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({ room: "", electricity: "", water: "" });
+  const [linkingId, setLinkingId] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -39,6 +40,18 @@ export function Utilities() {
       setFormData({ room: "", electricity: "", water: "" });
       fetchData();
     } catch (err: any) { alert(err.message || "Failed to save reading"); }
+  };
+
+  const handleLinkToInvoice = async (id: string) => {
+    try {
+      setLinkingId(id);
+      await api.linkUtility(id);
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || "Failed to link utility to invoice");
+    } finally {
+      setLinkingId(null);
+    }
   };
 
   const totalElectricity = utilities.reduce((sum: number, u: any) => sum + parseFloat(u.electricity || 0), 0);
@@ -147,13 +160,23 @@ export function Utilities() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">${(parseFloat(u.electricityCost || 0) + parseFloat(u.waterCost || 0)).toFixed(2)}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     {u.addedToInvoice ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium">
-                        <CheckCircle className="w-3.5 h-3.5" />Added
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-semibold shadow-sm">
+                        <CheckCircle className="w-3.5 h-3.5 text-green-600" />Linked
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs font-medium">
-                        <XCircle className="w-3.5 h-3.5" />Not linked
-                      </span>
+                      <button
+                        onClick={() => handleLinkToInvoice(u.id)}
+                        disabled={linkingId !== null}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-250 hover:border-amber-300 transition-all rounded-full text-xs font-semibold cursor-pointer active:scale-95 shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                        title="Click to link this utility record to the tenant's monthly invoice"
+                      >
+                        {linkingId === u.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-600" />
+                        ) : (
+                          <XCircle className="w-3.5 h-3.5 text-amber-500" />
+                        )}
+                        Link Invoice
+                      </button>
                     )}
                   </td>
                 </tr>

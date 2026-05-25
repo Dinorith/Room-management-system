@@ -50,7 +50,16 @@ export function Dashboard() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+
+    // Poll dashboard data in the background every 4 seconds to instantly reflect paid checkouts
+    const interval = setInterval(() => {
+      fetchData();
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handleRenewClick = (contract: any) => {
     setRenewingContract(contract);

@@ -271,6 +271,12 @@ class ApiClient {
     });
   }
 
+  async linkUtility(id: string) {
+    return this.request<any>(`/utilities/${id}/link`, {
+      method: 'POST',
+    });
+  }
+
   async getUtilityRates() {
     return this.request<any>('/utilities/rates');
   }
@@ -431,6 +437,30 @@ class ApiClient {
 
   async telegramTest() {
     return this.request<any>('/telegram/test');
+  }
+
+  // Generic REST methods for flexibility
+  async get<T = any>(endpoint: string, options?: { params?: Record<string, any> }) {
+    const query = options?.params ? '?' + new URLSearchParams(Object.entries(options.params).map(([k, v]) => [k, String(v)])).toString() : '';
+    return this.request<T>(`${endpoint}${query}`);
+  }
+
+  async post<T = any>(endpoint: string, data?: any) {
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async put<T = any>(endpoint: string, data?: any) {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async delete<T = any>(endpoint: string) {
+    return this.request<T>(endpoint, { method: 'DELETE' });
   }
 
 }

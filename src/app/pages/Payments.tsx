@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { 
   Plus, CheckCircle, Clock, AlertTriangle, Printer, FileText, X, Search, Filter, 
   Download, Award, Zap, ShieldCheck, Inbox, Mail, Calendar, User, DollarSign, Building2,
-  Eye
+  Eye, Link2
 } from "lucide-react";
 import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
@@ -19,6 +19,18 @@ export function Payments() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  // Clipboard copy state for payments
+  const [copiedInvoiceId, setCopiedInvoiceId] = useState<string | null>(null);
+
+  const handleCopyPaymentLink = (id: string) => {
+    const payLink = `${window.location.protocol}//${window.location.host}/pay/${id}`;
+    navigator.clipboard.writeText(payLink);
+    setCopiedInvoiceId(id);
+    setTimeout(() => {
+      setCopiedInvoiceId(null);
+    }, 2000);
+  };
   
   // New invoice state
   const [newPayment, setNewPayment] = useState({
@@ -110,6 +122,13 @@ export function Payments() {
     fetchPayments();
     fetchTenants();
     fetchRooms();
+
+    // Poll payments in the background every 4 seconds to instantly detect tenant settles in real-time
+    const interval = setInterval(() => {
+      fetchPayments();
+    }, 4000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const getCurrentMonthString = () => {
@@ -747,59 +766,25 @@ export function Payments() {
 
                   {/* Scan to Pay & Totals Summary side-by-side on print */}
                   <div className="space-y-6 print-totals-row">
-                    {/* Scan to Pay (Payment Details) */}
-                    <div className="flex items-start gap-4 p-4 bg-muted/40 rounded-2xl border border-foreground/5">
-                      <div className="relative w-20 h-20 bg-white p-1 rounded-xl shadow-inner flex items-center justify-center border border-black/10 shrink-0">
-                        <svg className="w-16 h-16 text-black" viewBox="0 0 100 100" fill="currentColor">
-                          <rect x="0" y="0" width="30" height="30" />
-                          <rect x="5" y="5" width="20" height="20" fill="white" />
-                          <rect x="10" y="10" width="10" height="10" />
-                          
-                          <rect x="70" y="0" width="30" height="30" />
-                          <rect x="75" y="5" width="20" height="20" fill="white" />
-                          <rect x="80" y="10" width="10" height="10" />
-                          
-                          <rect x="0" y="70" width="30" height="30" />
-                          <rect x="5" y="75" width="20" height="20" fill="white" />
-                          <rect x="10" y="80" width="10" height="10" />
-                          
-                          <rect x="40" y="40" width="20" height="20" />
-                          <rect x="45" y="45" width="10" height="10" fill="white" />
-                          
-                          <rect x="35" y="10" width="10" height="5" />
-                          <rect x="50" y="15" width="5" height="15" />
-                          <rect x="60" y="5" width="5" height="20" />
-                          <rect x="35" y="25" width="15" height="5" />
-                          
-                          <rect x="10" y="35" width="5" height="15" />
-                          <rect x="20" y="50" width="15" height="5" />
-                          <rect x="5" y="55" width="10" height="5" />
-                          
-                          <rect x="85" y="35" width="10" height="10" />
-                          <rect x="75" y="50" width="5" height="15" />
-                          <rect x="80" y="60" width="15" height="5" />
-                          
-                          <rect x="35" y="70" width="15" height="5" />
-                          <rect x="50" y="80" width="5" height="15" />
-                          <rect x="35" y="85" width="10" height="10" fill="white" />
-                          <rect x="40" y="90" width="5" height="5" />
-                          <rect x="60" y="75" width="5" height="20" />
-                          <rect x="70" y="85" width="15" height="5" />
-                        </svg>
-                        <div className="absolute w-5 h-5 bg-primary rounded-md border border-white flex items-center justify-center shadow">
-                          <Building2 className="w-3 h-3 text-foreground" />
+                    {selectedInvoice.status === "paid" ? (
+                      /* Official Payment Receipt Card */
+                      <div className="flex items-start gap-4 p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 w-full">
+                        <div className="w-20 h-20 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 shrink-0 text-emerald-600">
+                          <CheckCircle className="w-10 h-10 text-emerald-600" />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">Invoice Fully Settled</div>
+                          <p className="text-[10px] text-emerald-700 font-medium leading-snug">
+                            This invoice was paid on {selectedInvoice.paidDate || new Date().toISOString().split("T")[0]}. All dues have been cleared.
+                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            <p className="text-[9px] font-mono text-emerald-800 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10 inline-block">
+                              Receipt ID: {selectedInvoice.transactionId}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-1">
-                        <div className="text-[10px] font-extrabold uppercase tracking-wider text-primary">Scan to Settle Invoice</div>
-                        <p className="text-[10px] text-muted-foreground leading-snug">
-                          Use your digital wallet to scan QR code and initiate direct transfer.
-                        </p>
-                        <p className="text-[9px] font-mono text-muted-foreground bg-card px-2 py-0.5 rounded border border-foreground/5 inline-block">
-                          Ref: {selectedInvoice.invoiceId.replace('INV-', '')}
-                        </p>
-                      </div>
-                    </div>
+                    ) : null}
 
                     {/* Totals Summary */}
                     <div className="space-y-2.5 text-xs text-muted-foreground flex flex-col">
@@ -833,7 +818,22 @@ export function Payments() {
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" /> Metrics synced with smart meters
                   </div>
-                  <div className="flex gap-2 no-print">
+                  <div className="flex flex-wrap items-center gap-2 no-print">
+                    <Button 
+                      variant="outline" 
+                      icon={copiedInvoiceId === selectedInvoice.id ? CheckCircle : Link2} 
+                      onClick={() => handleCopyPaymentLink(selectedInvoice.id)}
+                      className={copiedInvoiceId === selectedInvoice.id ? "text-emerald-600 border-emerald-500 bg-emerald-50" : ""}
+                    >
+                      {copiedInvoiceId === selectedInvoice.id ? "Link Copied!" : "Copy Payment Link"}
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      icon={Eye} 
+                      onClick={() => window.open(`${window.location.protocol}//${window.location.host}/pay/${selectedInvoice.id}`, '_blank')}
+                    >
+                      Open in New Tab
+                    </Button>
                     <Button variant="outline" icon={Printer} onClick={() => window.print()}>
                       Print
                     </Button>

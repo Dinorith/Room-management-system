@@ -138,15 +138,15 @@ class ReportController extends Controller
     {
         $now = now();
 
-        // Year-to-date revenue
+        // Year-to-date revenue (rent + utilities + late fees)
         $ytdPayments = Payment::whereYear('due_date', $now->year)->get();
-        $ytdRevenue = round($ytdPayments->where('status', 'paid')->sum('amount'), 2);
+        $ytdRevenue = round($ytdPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
 
         // This month income
         $thisMonthPayments = Payment::whereMonth('due_date', $now->month)
             ->whereYear('due_date', $now->year)->get();
-        $thisMonthIncome = round($thisMonthPayments->sum('amount'), 2);
-        $thisMonthPaid = round($thisMonthPayments->where('status', 'paid')->sum('amount'), 2);
+        $thisMonthIncome = round($thisMonthPayments->sum(fn($p) => $p->total), 2);
+        $thisMonthPaid = round($thisMonthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
 
         // Collection rate
         $collectionRate = $thisMonthIncome > 0 ? round(($thisMonthPaid / $thisMonthIncome) * 100) : 0;
@@ -162,8 +162,8 @@ class ReportController extends Controller
             $date = $now->copy()->subMonths($i);
             $monthPayments = Payment::whereMonth('due_date', $date->month)
                 ->whereYear('due_date', $date->year)->get();
-            $total = round($monthPayments->sum('amount'), 2);
-            $paid = round($monthPayments->where('status', 'paid')->sum('amount'), 2);
+            $total = round($monthPayments->sum(fn($p) => $p->total), 2);
+            $paid = round($monthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
             $unpaid = round($total - $paid, 2);
             $rate = $total > 0 ? round(($paid / $total) * 100) : 0;
 
@@ -176,15 +176,15 @@ class ReportController extends Controller
             ];
         }
 
-        // Payment methods distribution
+        // Payment methods distribution - grouping null, empty and 'cash' together
         $paidPayments = Payment::where('status', 'paid')->get();
         $totalPaidCount = $paidPayments->count();
         $methodDistribution = [];
         if ($totalPaidCount > 0) {
-            $byMethod = $paidPayments->groupBy('payment_method');
+            $byMethod = $paidPayments->groupBy(fn($p) => strtolower($p->payment_method ?: 'cash'));
             foreach ($byMethod as $method => $items) {
                 $methodDistribution[] = [
-                    'method' => ucfirst(str_replace('_', ' ', $method ?: 'cash')),
+                    'method' => ucfirst(str_replace('_', ' ', $method)),
                     'count' => $items->count(),
                     'percentage' => round(($items->count() / $totalPaidCount) * 100),
                 ];

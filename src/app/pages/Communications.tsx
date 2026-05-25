@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
-import { Send, MessageSquare, Users, Megaphone, Clock, Bot, Reply } from "lucide-react";
+import { 
+  Send, Users, Megaphone, Clock, 
+  Receipt, Sparkles
+} from "lucide-react";
 import { api } from "../lib/api";
 
 interface Announcement {
@@ -8,7 +11,6 @@ interface Announcement {
   message: string;
   recipients: string;
   type?: string;
-  telegramChatId?: string;
   createdAt: string;
 }
 
@@ -24,32 +26,19 @@ export function Communications() {
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Telegram reply modal
-  const [replyModal, setReplyModal] = useState<{ open: boolean; chatId: string; name: string }>({ open: false, chatId: "", name: "" });
-  const [replyText, setReplyText] = useState("");
-  const [replySending, setReplySending] = useState(false);
-
-  // Telegram broadcast modal
-  const [tgBroadcastModal, setTgBroadcastModal] = useState(false);
-  const [tgBroadcastMsg, setTgBroadcastMsg] = useState("");
-  const [tgBroadcastSending, setTgBroadcastSending] = useState(false);
-
   const fetchData = async () => {
     try {
       const [notifRes, tenantsRes] = await Promise.all([
-        api.getNotifications({ limit: "30" }),
-        api.getTenants({ limit: "50" }),
+        api.getNotifications({ limit: "100" }),
+        api.getTenants({ limit: "100" }),
       ]);
       const mapped = (notifRes.data || []).map((n: any) => {
-        let meta: any = {};
-        try { meta = JSON.parse(n.metadata || "{}"); } catch { }
         return {
           id: n.id,
           title: n.title,
           message: n.message,
           type: n.type,
-          recipients: n.type === "broadcast" ? "All Tenants" : n.type === "telegram" ? "Telegram" : n.type === "booking" ? "Booking Demo" : "System",
-          telegramChatId: n.telegram_chat_id || meta?.chat_id || "",
+          recipients: n.type === "broadcast" ? "All Tenants" : n.type === "targeted" ? "Targeted Rooms" : n.type === "booking" ? "Booking Demo" : "System",
           createdAt: n.createdAt || n.created_at || "",
         };
       });
@@ -74,7 +63,8 @@ export function Communications() {
         targetTenants = tenants.filter((t: any) => rooms.includes(String(t.room)));
       }
       await api.createAnnouncement({
-        title, message,
+        title,
+        message,
         type: recipients === "all" ? "broadcast" : "targeted",
         recipients: recipients === "all" ? "All Tenants" : `Rooms: ${selectedRooms}`,
       });
@@ -85,185 +75,198 @@ export function Communications() {
     finally { setSending(false); }
   };
 
-  const handleReply = async () => {
-    if (!replyText.trim()) return;
-    setReplySending(true);
-    try {
-      await api.telegramBroadcast(replyText, replyModal.chatId);
-      setReplyText("");
-      setReplyModal({ open: false, chatId: "", name: "" });
-      setSuccessMsg("Reply sent via Telegram!");
-      fetchData();
-    } catch (err: any) { setErrorMsg(err.message || "Failed to send reply"); }
-    finally { setReplySending(false); }
-  };
-
-  const handleTgBroadcast = async () => {
-    if (!tgBroadcastMsg.trim()) return;
-    setTgBroadcastSending(true);
-    try {
-      await api.telegramBroadcast(tgBroadcastMsg);
-      setTgBroadcastMsg("");
-      setTgBroadcastModal(false);
-      setSuccessMsg("Broadcast sent via Telegram!");
-      fetchData();
-    } catch (err: any) { setErrorMsg(err.message || "Failed: " + err.message); }
-    finally { setTgBroadcastSending(false); }
-  };
-
-  const telegramMsgs = announcements.filter(a => a.type === "telegram");
   const broadcastCount = announcements.filter(a => a.type === "broadcast").length;
   const targetedCount = announcements.filter(a => a.type === "targeted").length;
+  const bookingCount = announcements.filter(a => a.type === "booking").length;
 
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="h-10 w-10 rounded-xl bg-primary animate-pulse" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="h-10 w-10 rounded-xl bg-primary animate-pulse" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold text-foreground">Tenant Communications</h1>
-          <p className="text-muted-foreground mt-1">Send announcements and updates to tenants</p>
-        </div>
-        <button onClick={() => setTgBroadcastModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors">
-          <Bot className="w-4 h-4" /> Telegram Broadcast
-        </button>
+      
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl font-semibold text-foreground">Communications</h1>
+        <p className="text-muted-foreground mt-1">Tenant dispatch announcements and public booking requests dashboard</p>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
-          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Total</h3><Megaphone className="w-5 h-5 text-blue-500" /></div>
-          <div className="text-3xl font-bold text-foreground">{announcements.length}</div>
-          <p className="text-xs text-muted-foreground mt-1">All messages</p>
+      {/* Stats Summary cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal flex items-center justify-between">
+          <div>
+            <h3 className="text-sm text-muted-foreground font-semibold">Total Dispatched</h3>
+            <div className="text-3xl font-black text-foreground mt-2">{broadcastCount + targetedCount}</div>
+            <p className="text-xs text-muted-foreground mt-1.5">Broadcasted & targeted updates</p>
+          </div>
+          <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-2xl flex items-center justify-center"><Megaphone className="w-6 h-6" /></div>
         </div>
-        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
-          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Broadcast</h3><Users className="w-5 h-5 text-green-500" /></div>
-          <div className="text-3xl font-bold text-foreground">{broadcastCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">To all tenants</p>
+        
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal flex items-center justify-between">
+          <div>
+            <h3 className="text-sm text-muted-foreground font-semibold">Broadcast Alerts</h3>
+            <div className="text-3xl font-black text-foreground mt-2">{broadcastCount}</div>
+            <p className="text-xs text-muted-foreground mt-1.5">Dispatched to all active tenants</p>
+          </div>
+          <div className="w-12 h-12 bg-green-500/10 text-green-500 rounded-2xl flex items-center justify-center"><Users className="w-6 h-6" /></div>
         </div>
-        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
-          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-muted-foreground">Targeted</h3><Send className="w-5 h-5 text-purple-500" /></div>
-          <div className="text-3xl font-bold text-foreground">{targetedCount}</div>
-          <p className="text-xs text-muted-foreground mt-1">Specific rooms</p>
-        </div>
-        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
-          <div className="flex items-center justify-between mb-2"><h3 className="text-sm text-foreground">Telegram</h3><Bot className="w-5 h-5 text-blue-500" /></div>
-          <div className="text-3xl font-bold text-foreground">{telegramMsgs.length}</div>
-          <p className="text-xs text-primary-foreground mt-1">Incoming messages</p>
+
+        <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal flex items-center justify-between">
+          <div>
+            <h3 className="text-sm text-muted-foreground font-semibold">Public Booking Demos</h3>
+            <div className="text-3xl font-black text-foreground mt-2">{bookingCount}</div>
+            <p className="text-xs text-muted-foreground mt-1.5">Incoming site contact forms</p>
+          </div>
+          <div className="w-12 h-12 bg-purple-500/10 text-purple-500 rounded-2xl flex items-center justify-center"><Sparkles className="w-6 h-6" /></div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Form & List columns */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-in fade-in duration-200">
+        
         {/* New Announcement Form */}
         <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
           <div className="p-6 border-b border-foreground/10 flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
               <Megaphone className="w-5 h-5 text-primary" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground">New Announcement</h2>
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Create Dispatch</h2>
+              <p className="text-xs text-muted-foreground">Broadcast updates or targeted warnings</p>
+            </div>
           </div>
+          
           <div className="p-6 space-y-4">
-            {successMsg && <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">✅ {successMsg}</div>}
-            {errorMsg && <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{errorMsg}</div>}
+            {successMsg && <div className="p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-xs font-semibold">✅ {successMsg}</div>}
+            {errorMsg && <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-semibold">⚠️ {errorMsg}</div>}
+            
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Title</label>
-              <input type="text" placeholder="e.g., Water Supply Interruption" value={title}
+              <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-2">Announcement Title</label>
+              <input 
+                type="text" 
+                placeholder="e.g. Scheduled Water Supply Maintenance" 
+                value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                className="w-full px-4 py-2.5 border border-border rounded-xl bg-slate-50/30 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-medium text-foreground transition-all" 
+              />
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Message</label>
-              <textarea rows={4} placeholder="Enter your announcement message here..." value={message}
+              <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-2">Message Body</label>
+              <textarea 
+                rows={4} 
+                placeholder="Provide details about the update..." 
+                value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
+                className="w-full px-4 py-2.5 border border-border rounded-xl bg-slate-50/30 focus:bg-white text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none font-medium text-foreground transition-all" 
+              />
             </div>
+            
             <div>
-              <label className="block text-sm font-medium text-foreground mb-2">Recipients</label>
-              <select value={recipients} onChange={(e) => setRecipients(e.target.value)}
-                className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="all">All Tenants</option>
-                <option value="specific">Specific Rooms</option>
+              <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-2">Recipient Scope</label>
+              <select 
+                value={recipients} 
+                onChange={(e) => setRecipients(e.target.value)}
+                className="w-full px-4 py-2.5 border border-border rounded-xl bg-card text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent font-bold text-foreground transition-all"
+              >
+                <option value="all">Broadcast — All tenants</option>
+                <option value="specific">Targeted — Specific Rooms</option>
               </select>
             </div>
+            
             {recipients === "specific" && (
-              <div>
-                <label className="block text-sm font-medium text-foreground mb-2">Select Rooms</label>
-                <div className="max-h-40 overflow-y-auto border border-border rounded-lg p-2 space-y-1">
+              <div className="space-y-2 animate-in slide-in-from-top-4 duration-150">
+                <label className="block text-xs font-extrabold uppercase text-slate-400 tracking-wider mb-2">Select Affected Rooms</label>
+                <div className="max-h-40 overflow-y-auto border border-border rounded-xl p-2 space-y-1 bg-slate-50/30 shadow-inner">
                   {tenants.map((t: any) => (
-                    <label key={t.id} className="flex items-center gap-2 px-2 py-1.5 hover:bg-muted/50 rounded cursor-pointer">
-                      <input type="checkbox"
+                    <label key={t.id} className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-muted/50 rounded-lg cursor-pointer transition-colors">
+                      <input 
+                        type="checkbox"
                         checked={selectedRooms.split(",").map(s => s.trim()).filter(Boolean).includes(String(t.room))}
                         onChange={(e) => {
                           const current = selectedRooms.split(",").map(s => s.trim()).filter(Boolean);
                           if (e.target.checked) setSelectedRooms([...current, String(t.room)].join(", "));
                           else setSelectedRooms(current.filter(r => r !== String(t.room)).join(", "));
-                        }} className="rounded border-border" />
-                      <span className="text-sm text-foreground">Room {t.room}</span>
+                        }} 
+                        className="rounded accent-primary w-4 h-4 cursor-pointer" 
+                      />
+                      <span className="text-sm font-bold text-foreground">Room {t.room}</span>
                       <span className="text-xs text-muted-foreground">— {t.name}</span>
                     </label>
                   ))}
                 </div>
               </div>
             )}
-            <button onClick={handleSend} disabled={sending}
-              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
-              <Send className="w-4 h-4" />{sending ? "Sending..." : "Send Announcement"}
+            
+            <button 
+              onClick={handleSend} 
+              disabled={sending}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-primary text-primary-foreground rounded-full font-extrabold hover:bg-primary/95 transition-all shadow-md active:scale-98 disabled:opacity-50 cursor-pointer text-sm"
+            >
+              <Send className="w-4 h-4" />
+              {sending ? "Broadcasting Alert..." : "Send Announcement"}
             </button>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 p-3 rounded-lg">
-              <MessageSquare className="w-4 h-4 text-blue-500 flex-shrink-0" />
-              <span><strong>Multi-Channel Delivery</strong> — Stored in notifications and optionally sent via Telegram bot.</span>
-            </div>
           </div>
         </div>
 
-        {/* All Messages with Telegram tag */}
-        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal">
-          <div className="p-6 border-b border-foreground/10">
-            <h2 className="text-xl font-semibold text-foreground">Recent Messages</h2>
-            <p className="text-sm text-muted-foreground mt-1">All communications including Telegram</p>
+        {/* Recent Stream */}
+        <div className="bg-card rounded-3xl border border-foreground/10 shadow-brutal flex flex-col">
+          <div className="p-6 border-b border-foreground/10 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-foreground">Notifications & Activity</h2>
+              <p className="text-xs text-muted-foreground">Chronological audit stream of announcements and updates</p>
+            </div>
           </div>
-          <div className="divide-y divide-foreground/5 max-h-[520px] overflow-y-auto">
+          
+          <div className="divide-y divide-foreground/5 overflow-y-auto max-h-[500px] flex-1">
             {announcements.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No messages yet</div>
+              <div className="p-12 text-center text-muted-foreground italic font-semibold">No messages or alerts found</div>
             ) : (
-              announcements.slice(0, 15).map((a) => (
-                <div key={a.id} className={`p-4 hover:bg-muted/30 transition-colors ${a.type === 'telegram' ? 'border-l-2 border-l-blue-400' : a.type === 'booking' ? 'border-l-2 border-l-primary' : ''}`}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <h4 className="font-semibold text-foreground text-sm truncate">{a.title}</h4>
-                        {a.type === 'telegram' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary/10 text-foreground rounded text-xs font-medium shrink-0">
-                            <Bot className="w-3 h-3" />Telegram
-                          </span>
-                        )}
-                        {a.type === 'telegram_sent' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-green-50 text-green-700 rounded text-xs font-medium shrink-0">
-                            <Send className="w-3 h-3" />Sent
-                          </span>
-                        )}
-                        {a.type === 'booking' && (
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-primary text-primary-foreground rounded text-xs font-medium shrink-0">
-                            <Megaphone className="w-3 h-3 text-primary-foreground" />Demo Request
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{a.message}</p>
-                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        {a.createdAt ? new Date(a.createdAt).toLocaleString() : "Now"}
-                        <span className="px-1.5 py-0.5 bg-muted text-muted-foreground rounded text-xs">{a.recipients}</span>
-                      </div>
+              announcements.slice(0, 25).map((a) => (
+                <div 
+                  key={a.id} 
+                  className={`p-5 hover:bg-muted/30 transition-colors flex items-start justify-between gap-4 border-l-4 ${
+                    a.type === 'booking' 
+                      ? 'border-l-purple-500 bg-purple-50/5'
+                      : a.type === 'broadcast'
+                        ? 'border-l-green-500'
+                        : a.type === 'targeted'
+                          ? 'border-l-blue-500'
+                          : 'border-l-slate-300'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                      <h4 className="font-bold text-slate-800 text-sm truncate">{a.title}</h4>
+                      {a.type === 'booking' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-[9px] font-extrabold tracking-wider uppercase shrink-0">
+                          <Sparkles className="w-3.5 h-3.5" /> Booking Demo
+                        </span>
+                      )}
+                      {a.type === 'broadcast' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-50 text-green-700 border border-green-200 rounded-full text-[9px] font-extrabold tracking-wider uppercase shrink-0">
+                          <Users className="w-3 h-3" /> Broadcast
+                        </span>
+                      )}
+                      {a.type === 'targeted' && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[9px] font-extrabold tracking-wider uppercase shrink-0">
+                          <Megaphone className="w-3 h-3" /> Targeted
+                        </span>
+                      )}
                     </div>
-                    {a.type === 'telegram' && a.telegramChatId && (
-                      <button onClick={() => { setReplyModal({ open: true, chatId: a.telegramChatId!, name: a.title }); setReplyText(""); }}
-                        className="flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary-foreground rounded-lg hover:bg-primary/20 text-xs font-medium shrink-0 transition-colors">
-                        <Reply className="w-3 h-3" />Reply
-                      </button>
-                    )}
+                    
+                    <p className="text-xs text-muted-foreground leading-relaxed break-words">{a.message}</p>
+                    
+                    <div className="flex items-center gap-3 mt-3 text-[10px] text-muted-foreground font-semibold">
+                      <Clock className="w-3 h-3" />
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString() : "Now"}
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-md font-extrabold uppercase tracking-wide text-[9px]">{a.recipients}</span>
+                    </div>
                   </div>
                 </div>
               ))
@@ -271,56 +274,6 @@ export function Communications() {
           </div>
         </div>
       </div>
-
-      {/* Reply Modal */}
-      {replyModal.open && (
-        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-4">
-              <Bot className="w-5 h-5 text-blue-500" />
-              <h3 className="text-xl font-semibold text-foreground">Reply via Telegram</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">Replying to: <strong>{replyModal.name}</strong></p>
-            {errorMsg && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{errorMsg}</div>}
-            <textarea rows={4} value={replyText} onChange={e => setReplyText(e.target.value)}
-              placeholder="Type your reply..."
-              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => { setReplyModal({ open: false, chatId: "", name: "" }); setErrorMsg(""); }}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={handleReply} disabled={replySending}
-                className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors disabled:opacity-50">
-                <Send className="w-4 h-4" />{replySending ? "Sending..." : "Send Reply"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Telegram Broadcast Modal */}
-      {tgBroadcastModal && (
-        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl">
-            <div className="flex items-center gap-2 mb-2">
-              <Bot className="w-5 h-5 text-blue-500" />
-              <h3 className="text-xl font-semibold text-foreground">Telegram Broadcast</h3>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">Send a message to the configured Telegram chat.</p>
-            {errorMsg && <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{errorMsg}</div>}
-            <textarea rows={4} value={tgBroadcastMsg} onChange={e => setTgBroadcastMsg(e.target.value)}
-              placeholder="Type your broadcast message..."
-              className="w-full px-4 py-2.5 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none" />
-            <div className="mt-4 flex justify-end gap-2">
-              <button onClick={() => { setTgBroadcastModal(false); setTgBroadcastMsg(""); setErrorMsg(""); }}
-                className="px-4 py-2 border border-border rounded-lg hover:bg-muted transition-colors">Cancel</button>
-              <button onClick={handleTgBroadcast} disabled={tgBroadcastSending}
-                className="flex items-center gap-2 px-4 py-2 bg-primary/100 text-white rounded-lg hover:bg-secondary/90 font-medium transition-colors disabled:opacity-50">
-                <Bot className="w-4 h-4" />{tgBroadcastSending ? "Sending..." : "Send via Telegram"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -167,4 +167,67 @@ class UtilityController extends Controller
             ->where('utility_amount', '>', 0)
             ->exists();
     }
+
+    /**
+     * POST /api/utilities/{id}/link
+     */
+    public function linkToInvoice(string $id): JsonResponse
+    {
+        $utility = Utility::with('room.tenant')->find($id);
+        if (!$utility) {
+            return $this->error('Utility record not found', 'not_found', null, 404);
+        }
+
+        $room = $utility->room;
+        if (!$room) {
+            return $this->error('Room not found', 'not_found', null, 404);
+        }
+
+        $tenant = $room->tenant;
+        if (!$tenant) {
+            return $this->error("Cannot link: Room {$room->room_number} has no active tenant assigned.", 'no_tenant', null, 422);
+        }
+
+        // Find or create an invoice for this tenant for the utility's month
+        $payment = Payment::where('tenant_id', $tenant->id)
+            ->where('month', $utility->month)
+            ->first();
+
+        $eCost = (float)$utility->electricity_cost;
+        $wCost = (float)$utility->water_cost;
+        $utilityTotal = round($eCost + $wCost, 2);
+
+        $eUsage = (float)$utility->electricity;
+        $wUsage = (float)$utility->water;
+
+        if ($payment) {
+            $payment->update([
+                'utility_amount' => $utilityTotal,
+                'notes' => ($payment->notes ? $payment->notes . ' | ' : '') .
+                    "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+            ]);
+        } else {
+            // Generate a due date (e.g., 1st of the month or today)
+            $dueDate = now()->toDateString();
+            $payment = Payment::create([
+                'tenant_id' => $tenant->id,
+                'room_id' => $room->id,
+                'amount' => $room->rent,
+                'utility_amount' => $utilityTotal,
+                'late_fee' => 0,
+                'due_date' => $dueDate,
+                'status' => 'pending',
+                'month' => $utility->month,
+                'notes' => "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+            ]);
+        }
+
+        return $this->success([
+            'utility' => [
+                'id' => $utility->id,
+                'addedToInvoice' => true,
+            ],
+            'payment' => $payment
+        ], 'Utility reading successfully linked to monthly invoice!');
+    }
 }

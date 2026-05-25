@@ -109,10 +109,19 @@ class TenantPortalController extends Controller
                 'completedDate' => $m->completed_date,
             ]);
 
-        // Fetch notifications for the tenant (represented by general announcements)
+        // Fetch notifications for the tenant (represented by general announcements & direct landlord-tenant messages)
         $admin = \App\Models\User::first();
         $notifications = Notification::where('user_id', $admin?->id)
-            ->whereIn('type', ['general', 'broadcast', 'sms', 'telegram_sent'])
+            ->where(function($query) use ($tenantId) {
+                $query->whereIn('type', ['general', 'broadcast'])
+                      ->orWhere(function($q) use ($tenantId) {
+                          $q->whereIn('type', ['sms', 'telegram_sent', 'telegram'])
+                            ->where(function($sub) use ($tenantId) {
+                                $sub->where('metadata', 'like', '%"tenant_id":"' . $tenantId . '"%')
+                                    ->orWhere('metadata', 'like', '%"tenant_id": "' . $tenantId . '"%');
+                            });
+                      });
+            })
             ->orderBy('created_at', 'desc')
             ->take(10)
             ->get()
@@ -239,6 +248,7 @@ class TenantPortalController extends Controller
                 'title' => "Message from " . $tenant->name . " (Room " . ($tenant->room->room_number ?? 'N/A') . ")",
                 'message' => $v['message'],
                 'type' => 'telegram', // reuse telegram style in Admin UI so it supports replies!
+                'metadata' => json_encode(['tenant_id' => $tenant->id]),
                 'read' => false,
             ]);
         }
@@ -256,9 +266,21 @@ class TenantPortalController extends Controller
             return $this->error('Contract not found', 'not_found', null, 404);
         }
 
+        // Get signature data from request
+        $signature = $request->input('signature');
+        $typedName = $request->input('signedByName');
+
+        $updatedTerms = $c->terms;
+        if ($signature) {
+            $updatedTerms = $c->terms . "\n\n[SIGNATURE]:" . $signature;
+        } elseif ($typedName) {
+            $updatedTerms = $c->terms . "\n\n[SIGNATURE]:typed:" . $typedName;
+        }
+
         // Update status to active
         $c->update([
             'status' => 'active',
+            'terms' => $updatedTerms,
         ]);
 
         // Trigger system notification so the Landlord sees the signature instantly
@@ -276,5 +298,58 @@ class TenantPortalController extends Controller
         }
 
         return $this->success($c, 'Contract signed successfully!');
+    }
+
+    /**
+     * GET /api/tenant-portal/payments/{paymentId}
+     */
+    public function getInvoice(string $paymentId): JsonResponse
+    {
+        $p = Payment::with(['tenant.room', 'room'])->find($paymentId);
+        if (!$p) {
+            return $this->error('Invoice not found', 'not_found', null, 404);
+        }
+
+        return $this->success([
+            'id' => $p->id,
+            'amount' => (float)$p->amount,
+            'utilityAmount' => (float)$p->utility_amount,
+            'lateFee' => (float)$p->late_fee,
+            'total' => (float)$p->total,
+            'dueDate' => $p->due_date ? $p->due_date->toDateString() : null,
+            'paidDate' => $p->paid_date ? $p->paid_date->toDateString() : null,
+            'month' => $p->month,
+            'status' => $p->status,
+            'paymentMethod' => $p->payment_method ?? 'qr_code',
+            'notes' => $p->notes,
+            'receiptNumber' => $p->receipt_number,
+            'tenantName' => $p->tenant->name ?? 'Guest',
+            'roomNumber' => $p->room->room_number ?? ($p->tenant->room->room_number ?? 'N/A'),
+            'roomType' => $p->room->type ?? ($p->tenant->room->type ?? 'N/A'),
+        ], 'Invoice details retrieved successfully');
+    }
+
+    /**
+     * GET /api/tenant-portal/contracts/{contractId}
+     */
+    public function getContract(string $contractId): JsonResponse
+    {
+        $c = Contract::with(['tenant.room', 'room'])->find($contractId);
+        if (!$c) {
+            return $this->error('Contract not found', 'not_found', null, 404);
+        }
+
+        return $this->success([
+            'id' => $c->id,
+            'tenantId' => $c->tenant_id,
+            'tenantName' => $c->tenant->name ?? 'Guest',
+            'roomNumber' => $c->room->room_number ?? 'N/A',
+            'roomType' => $c->room->type ?? 'N/A',
+            'rentAmount' => (float)$c->rent_amount,
+            'startDate' => $c->start_date ? $c->start_date->toDateString() : null,
+            'endDate' => $c->end_date ? $c->end_date->toDateString() : null,
+            'status' => $c->status,
+            'terms' => $c->terms,
+        ], 'Contract details retrieved successfully');
     }
 }

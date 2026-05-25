@@ -210,14 +210,30 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide absolutely everything in the body by default */
-  body > * {
+  /* Keep #root container displayed to allow React render */
+  #root,
+  body {
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  /* Hide the landlord portal layout components completely */
+  #root > div > aside,
+  #root > div > div > header,
+  #root > div > div > main > div > :not(.no-print-backdrop),
+  #root > :not(div) {
     display: none !important;
   }
 
-  /* Ensure the backdrop container is the only top-level item displayed, but without modal screen styles */
-  body > div.no-print-backdrop {
-    display: block !important;
+  /* Hide the public payment page screen-only panels completely */
+  #root > div.min-h-screen > :not(.relative),
+  #root > div.min-h-screen > div.relative > :not(.printable-invoice) {
+    display: none !important;
+  }
+
+  /* Position the modal backdrop or screen frame to fill the full printable area */
+  .no-print-backdrop,
+  #root > div.min-h-screen {
     position: absolute !important;
     top: 0 !important;
     left: 0 !important;
@@ -228,22 +244,16 @@
     padding: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
-    overflow: visible !important;
     z-index: auto !important;
+    display: block !important;
   }
 
-  /* Make sure the printable invoice and its descendants are visible and styled for print */
-  .printable-invoice,
-  .printable-invoice * {
-    visibility: visible !important;
-    display: revert !important; /* Revert grid/flex hidden properties to default print display if not explicitly hidden */
-  }
-
-  /* Target screen elements inside the printable invoice card to hide them */
+  /* Target screen elements inside the printable invoice card to completely hide them */
   .no-print,
   .close-button,
   .printable-invoice button,
-  .printable-invoice .no-print {
+  .printable-invoice .no-print,
+  .printable-invoice .no-print * {
     display: none !important;
     height: 0 !important;
     width: 0 !important;
@@ -253,10 +263,11 @@
     visibility: hidden !important;
   }
 
-  /* Style the invoice document container itself */
+  /* Style the invoice document container itself at the top-left of the page */
   .printable-invoice {
-    position: relative !important;
-    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
     padding: 40px !important;

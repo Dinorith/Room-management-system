@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\TenantController;
 use App\Http\Controllers\RoomController;
+use App\Http\Controllers\RoomTypeController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\ExpenseController;
@@ -16,7 +17,6 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FileController;
-use App\Http\Controllers\TelegramController;
 
 /*
 |--------------------------------------------------------------------------
@@ -27,9 +27,6 @@ Route::middleware('throttle:api')->prefix('auth')->group(function () {
     Route::post('/login', [AuthController::class, 'login']);
     Route::post('/register', [AuthController::class, 'register']);
 });
-
-// Telegram webhook is PUBLIC (Telegram servers call this, no auth token)
-Route::post('/telegram/webhook', [TelegramController::class, 'handleUpdate']);
 
 // Public Booking Demo requests (landing page integration)
 Route::post('/bookings/demo', [NotificationController::class, 'storeDemoBooking']);
@@ -49,8 +46,10 @@ Route::prefix('tenant-portal')->group(function () {
     Route::post('/login', [\App\Http\Controllers\TenantPortalController::class, 'login']);
     Route::get('/dashboard/{tenantId}', [\App\Http\Controllers\TenantPortalController::class, 'dashboard']);
     Route::post('/maintenance', [\App\Http\Controllers\TenantPortalController::class, 'createMaintenance']);
+    Route::get('/payments/{paymentId}', [\App\Http\Controllers\TenantPortalController::class, 'getInvoice']);
     Route::post('/payments/{paymentId}/pay', [\App\Http\Controllers\TenantPortalController::class, 'payInvoice']);
     Route::post('/messages', [\App\Http\Controllers\TenantPortalController::class, 'sendMessage']);
+    Route::get('/contracts/{contractId}', [\App\Http\Controllers\TenantPortalController::class, 'getContract']);
     Route::post('/contracts/{contractId}/sign', [\App\Http\Controllers\TenantPortalController::class, 'signContract']);
 });
 
@@ -81,6 +80,11 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     // Rooms
     Route::apiResource('rooms', RoomController::class);
 
+    // Room Types
+    Route::get('/room-types/active', [RoomTypeController::class, 'active']);
+    Route::get('/room-types/statistics', [RoomTypeController::class, 'statistics']);
+    Route::apiResource('room-types', RoomTypeController::class);
+
     // Payments
     Route::get('/payments/late', [PaymentController::class, 'late']);
     Route::get('/payments/schedule/{month}', [PaymentController::class, 'schedule']);
@@ -102,6 +106,7 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::put('/utilities/rates', [UtilityController::class, 'updateRates']);
     Route::get('/utilities/monthly/{month}', [UtilityController::class, 'monthly']);
     Route::apiResource('utilities', UtilityController::class)->only(['index', 'store']);
+    Route::post('/utilities/{id}/link', [UtilityController::class, 'linkToInvoice']);
 
     // Contracts
     Route::get('/contracts/expiring-soon', [ContractController::class, 'expiringSoon']);
@@ -130,14 +135,10 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::post('/notifications/mark-read/{id}', [NotificationController::class, 'markRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::post('/notifications/send-sms', [NotificationController::class, 'sendSms']);
+    Route::post('/telegram/broadcast', [NotificationController::class, 'telegramBroadcast']);
 
     // File Upload (stricter rate limit)
     Route::middleware('throttle:uploads')->post('/files/upload', [FileController::class, 'upload']);
 
-    // Telegram
-    Route::prefix('telegram')->group(function () {
-        Route::post('/broadcast',         [TelegramController::class, 'broadcast']);
-        Route::post('/register-webhook',  [TelegramController::class, 'registerWebhook']);
-        Route::get('/test',               [TelegramController::class, 'test']);
-    });
+
 });

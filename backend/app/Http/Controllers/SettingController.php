@@ -34,9 +34,6 @@ class SettingController extends Controller
                 'gracePeriodDays'=> (int)   $settings->grace_period_days,
             ],
             'invoiceDueDay'        => (int) $settings->invoice_due_day,
-            'telegramBotToken'     => $settings->telegram_bot_token,
-            'telegramChatId'       => $settings->telegram_chat_id,
-            'telegramConfigured'   => !empty($settings->telegram_bot_token),
         ]);
     }
 
@@ -53,8 +50,6 @@ class SettingController extends Controller
             'lateFeeType'      => 'nullable|in:fixed,percentage',
             'gracePeriodDays'  => 'nullable|integer|min:0|max:30',
             'invoiceDueDay'    => 'nullable|integer|min:1|max:28',
-            'telegramBotToken' => 'nullable|string|max:255',
-            'telegramChatId'   => 'nullable|string|max:100',
         ]);
 
         $settings = Setting::firstOrCreate([], ['currency' => 'USD', 'timezone' => 'Asia/Phnom_Penh']);
@@ -70,8 +65,6 @@ class SettingController extends Controller
         if (isset($v['lateFeeType']))     $data['late_fee_type']      = $v['lateFeeType'];
         if (isset($v['gracePeriodDays'])) $data['grace_period_days']  = $v['gracePeriodDays'];
         if (isset($v['invoiceDueDay']))   $data['invoice_due_day']    = $v['invoiceDueDay'];
-        if (array_key_exists('telegramBotToken', $v)) $data['telegram_bot_token'] = $v['telegramBotToken'];
-        if (array_key_exists('telegramChatId',   $v)) $data['telegram_chat_id']   = $v['telegramChatId'];
 
         $settings->update($data);
         return $this->success($settings->fresh(), 'Settings updated successfully');
