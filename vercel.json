@@ -1,6 +1,7 @@
 {
-  "buildCommand": "rm -rf node_modules && npm install && npm run build",
+  "buildCommand": "npm run vercel-build",
+  "installCommand": "echo 'skipping default install'",
   "outputDirectory": "dist",
-  "installCommand": "npm install",
+  "framework": "vite",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
