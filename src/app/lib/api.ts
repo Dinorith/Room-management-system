@@ -1,4 +1,7 @@
-const API_BASE_URL = '/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 
+  (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? '/api' 
+    : 'http://localhost:8000/api');
 
 class ApiClient {
   private token: string | null = null;
