@@ -183,13 +183,12 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Prevent deletion of tenant with pending payments
 
 #### FR 2.3.6 Tenant Communications
-- **Description:** Send notifications to tenants
+- **Description:** Send notifications to tenants using supported channels
 - **Acceptance Criteria:**
-  - Send payment reminders via SMS/Email
-  - Send maintenance updates
-  - Send lease expiration reminders
-  - Send utility consumption reports
-  - Track notification delivery status
+  - Send payment reminders and custom announcements via simulated SMS queueing
+  - Send Telegram Channel Broadcasts for general announcements
+  - Reply directly to tenants via integrated Telegram chat channels
+  - Send maintenance updates and notification records tracked in the dashboard
 
 ---
 
@@ -316,10 +315,10 @@ To maintain a streamlined, secure, and focused application, the following bounda
 #### FR 2.5.6 Payment Methods
 - **Description:** Support multiple payment methods
 - **Acceptance Criteria:**
-  - Cash payments
-  - Bank transfers
-  - Cheques
-  - Digital payments (if applicable)
+  - Cash payments recorded manually
+  - Bank transfers recorded manually with proof of payment attachment
+  - Cheques recorded manually
+  - Public tenant payment gateway allowing tenants to view invoice, check QR codes, and upload transfer receipts (proof-of-payment)
   - Record and track payment method preferences
 
 #### FR 2.5.7 Payment Reports
@@ -524,12 +523,12 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Year-to-date summary
 
 #### FR 2.8.6 Utility Billing
-- **Description:** Generate utility bills for tenants
+- **Description:** Generate utility bills for tenants and link them to rent invoices
 - **Acceptance Criteria:**
-  - Calculate individual tenant utility charges
-  - Include in tenant invoice
-  - Send utility bill to tenant
-  - Track payment of utility charges
+  - Calculate individual tenant utility charges based on recorded electricity/water readings and base rates
+  - Link logged utility readings directly to a generated monthly invoice (`/utilities/{id}/link`)
+  - Include computed utility amounts on the tenant's public invoice receipt
+  - Track payment status of utility charges through the main invoice ledger
 
 ---
 
@@ -559,15 +558,14 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Confirmation message
 
 #### FR 2.9.3 View Contract Details
-- **Description:** Display contract information
+- **Description:** Display contract information and signature status
 - **Acceptance Criteria:**
   - Show all contract details
   - Display tenant and room information
-  - Show contract document
-  - Display contract terms
-  - Show payment schedule
-  - Show renewal options
-  - Display contract history
+  - Show uploaded contract document (PDF/Image)
+  - Display drawn/typed digital signature from the tenant portal
+  - Display contract terms, payment schedule, and renewal options
+  - Display contract history and signature timestamps
 
 #### FR 2.9.4 Update Contract
 - **Description:** Modify contract details
@@ -669,15 +667,10 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Contract expiration schedule
   - Export to PDF/Excel
 
-#### FR 2.10.6 Report Scheduling
+#### FR 2.10.6 Report Scheduling [Out of Scope / Future Enhancement]
 - **Description:** Schedule automatic report generation
 - **Acceptance Criteria:**
-  - Select report type
-  - Choose frequency (daily, weekly, monthly)
-  - Specify recipients
-  - Choose delivery method (email, download)
-  - Set report parameters
-  - View scheduled reports
+  - *Note: This feature is out of scope for the current single-tenant deployment. Reports must be generated and downloaded manually from the Reports page.*
 
 ---
 
@@ -721,28 +714,21 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Reset user passwords
   - Deactivate/activate users
 
-#### FR 2.11.5 Backup & Recovery
+#### FR 2.11.5 Backup & Recovery [Out of Scope / Future Enhancement]
 - **Description:** System backup functionality
 - **Acceptance Criteria:**
-  - Automatic daily backups
-  - Manual backup option
-  - Backup scheduling
-  - Restore from backup
-  - Backup encryption
-  - Backup storage management
+  - *Note: Automatic daily backups are handled directly at the database infrastructure level (e.g., Railway database backups) and are out of scope for the application layer.*
 
 ---
 
 ### 2.12 NOTIFICATIONS
 
 #### FR 2.12.1 Payment Reminders
-- **Description:** Automatic payment reminder notifications
+- **Description:** Automated and manual payment reminder notifications
 - **Acceptance Criteria:**
-  - Email reminders for upcoming payments
-  - SMS reminders (if configured)
-  - Customizable reminder schedule
-  - Multi-language support
-  - Trackable delivery
+  - SMS notifications queued in the dashboard for manual or automatic dispatch (Twilio simulated logging)
+  - Telegram Channel Broadcasts sent by the administrator for general/payment announcements
+  - In-app notification center alerts visible on the admin dashboard
 
 #### FR 2.12.2 Maintenance Notifications
 - **Description:** Notify on maintenance status changes
@@ -801,14 +787,10 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Encoding support
   - Download capability
 
-#### FR 2.13.4 Email Reports
+#### FR 2.13.4 Email Reports [Out of Scope / Future Enhancement]
 - **Description:** Send reports via email
 - **Acceptance Criteria:**
-  - Select email recipients
-  - Attach report (PDF/Excel)
-  - Custom email message
-  - Schedule sending
-  - Delivery confirmation
+  - *Note: Custom email report attachments are currently out of scope. Reports can be downloaded directly as PDF/Excel/CSV.*
 
 ---
 
@@ -845,9 +827,38 @@ To maintain a streamlined, secure, and focused application, the following bounda
 
 ---
 
-### 2.15 USER INTERFACE
+### 2.15 PUBLIC TENANT PORTAL INTEGRATIONS
 
-#### FR 2.15.1 Dashboard Layout
+#### FR 2.15.1 Public Lease Signing
+- **Description:** Allow tenants to view and sign lease contracts digitally
+- **Acceptance Criteria:**
+  - Secure public page loaded via a unique contract ID (`/tenant-portal/contracts/{id}`)
+  - Display contract terms, rent details, and start/end dates
+  - Allow tenants to draw their signature on a digital canvas or type their name to sign
+  - Submit the signature to the backend (`/tenant-portal/contracts/{id}/sign`) and update the contract status to "signed"
+
+#### FR 2.15.2 Public Invoice Payments
+- **Description:** Allow tenants to view invoice details and upload proof of payment
+- **Acceptance Criteria:**
+  - Secure public page loaded via a unique payment ID (`/tenant-portal/payments/{id}`)
+  - Display a breakdown of rent charges, utilities, and other items
+  - Display landlord payment information (bank details or QR code for easy transfer)
+  - Allow tenants to upload a payment receipt image/document as proof of transfer (`/tenant-portal/payments/{id}/pay`)
+  - Update payment status to "paid" or "pending verification" in the admin dashboard
+
+#### FR 2.15.3 Public Maintenance Submission
+- **Description:** Allow tenants to submit maintenance tickets without authenticating
+- **Acceptance Criteria:**
+  - Accessible public form inside the tenant portal interface
+  - Allow selecting room, entering issue title and detailed description
+  - Submit request directly to the administrator database (`/tenant-portal/maintenance`)
+  - Notify the manager dashboard immediately
+
+---
+
+### 2.16 USER INTERFACE
+
+#### FR 2.16.1 Dashboard Layout
 - **Description:** Responsive dashboard design
 - **Acceptance Criteria:**
   - Works on desktop, tablet, mobile
@@ -856,7 +867,7 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Fast loading times
   - Accessible design (WCAG compliance)
 
-#### FR 2.15.2 Navigation
+#### FR 2.16.2 Navigation
 - **Description:** Easy navigation system
 - **Acceptance Criteria:**
   - Main menu with all modules
@@ -865,7 +876,7 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Search/command palette
   - Mobile hamburger menu
 
-#### FR 2.15.3 Dark Mode
+#### FR 2.16.3 Dark Mode
 - **Description:** Dark theme support
 - **Acceptance Criteria:**
   - Toggle dark/light mode
@@ -874,7 +885,7 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - All pages support dark mode
   - Reduced brightness for night use
 
-#### FR 2.15.4 Accessibility
+#### FR 2.16.4 Accessibility
 - **Description:** WCAG 2.1 AA compliance
 - **Acceptance Criteria:**
   - Keyboard navigation
