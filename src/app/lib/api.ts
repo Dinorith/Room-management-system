@@ -42,10 +42,16 @@ class ApiClient {
       delete headers['Content-Type'];
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
+    const url = `${API_BASE_URL}${endpoint}`;
+    let response;
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (e: any) {
+      throw new Error(`Network Error: Failed to connect to ${url}. Make sure your local backend server is running and CORS is configured.`);
+    }
 
     if (response.status === 401) {
       this.setToken(null);
@@ -53,7 +59,15 @@ class ApiClient {
       throw new Error('Unauthenticated');
     }
 
-    const data = await response.json();
+    let data;
+    let responseText = '';
+    try {
+      responseText = await response.text();
+      data = JSON.parse(responseText);
+    } catch (e) {
+      const sample = responseText ? responseText.substring(0, 120) : '(empty)';
+      throw new Error(`API Error: Response from ${url} (Status ${response.status}) is not JSON. Response: "${sample}"`);
+    }
 
     if (!response.ok) {
       throw {
