@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -45,7 +47,35 @@ class NotificationController extends Controller
             'read' => false,
         ]);
 
-        return $this->success($notification, 'Announcement created', 201);
+        // Send actual emails to targeted or all tenants
+        try {
+            $recipientsType = $v['type'] ?? 'broadcast';
+            $tenantsQuery = \App\Models\Tenant::whereNotNull('email')->where('email', '!=', '');
+
+            if ($recipientsType === 'targeted' && !empty($v['recipients'])) {
+                // Parse "Rooms: 101, 102"
+                $roomsText = str_replace('Rooms: ', '', $v['recipients']);
+                $roomsArray = array_map('trim', explode(',', $roomsText));
+                
+                // Fetch active rooms and their assigned tenants
+                $roomIds = \App\Models\Room::whereIn('room_number', $roomsArray)->pluck('id');
+                $tenantsQuery->whereIn('room_id', $roomIds);
+            }
+
+            $activeTenants = $tenantsQuery->get();
+
+            foreach ($activeTenants as $tenant) {
+                Mail::raw($v['message'], function($message) use ($tenant, $v) {
+                    $message->to($tenant->email)
+                            ->subject($v['title']);
+                });
+            }
+        } catch (\Exception $e) {
+            // Log the mail failure but don't disrupt the user request
+            Log::error('Failed to dispatch announcement emails: ' . $e->getMessage());
+        }
+
+        return $this->success($notification, 'Announcement created and email dispatch triggered', 201);
     }
 
     public function markRead(string $id, Request $request): JsonResponse
