@@ -4,6 +4,7 @@ import {
   FileText, Check, AlertTriangle, ShieldCheck, PenTool, 
   Download, Printer, Info, CheckCircle2, Lock, FileSignature, ChevronRight
 } from "lucide-react";
+import { api } from "../lib/api";
 
 export function PublicContractSignPage() {
   const { contractId } = useParams();
@@ -26,15 +27,11 @@ export function PublicContractSignPage() {
     const fetchContract = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/tenant-portal/contracts/${contractId}`);
-        if (!res.ok) {
-          throw new Error(res.status === 404 ? "Lease agreement not found or expired" : "Failed to load agreement details");
-        }
-        const data = await res.json();
+        const res = await api.get(`/tenant-portal/contracts/${contractId}`);
         if (active) {
-          setContract(data.data);
-          setTypedName(data.data.tenantName);
-          if (data.data.status === "active") {
+          setContract(res.data);
+          setTypedName(res.data.tenantName);
+          if (res.data.status === "active") {
             setSignatureCompleted(true);
           }
         }
@@ -166,24 +163,13 @@ export function PublicContractSignPage() {
         signatureValue = `typed:${typedName}`;
       }
 
-      const res = await fetch(`/api/tenant-portal/contracts/${contractId}/sign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          signedByName: typedName,
-          signatureType: signMethod,
-          signature: signatureValue,
-        }),
+      const res = await api.post(`/tenant-portal/contracts/${contractId}/sign`, {
+        signedByName: typedName,
+        signatureType: signMethod,
+        signature: signatureValue,
       });
-
-      if (!res.ok) {
-        throw new Error("Unable to submit signature");
-      }
       
-      const resData = await res.json();
-      setContract(resData.data);
+      setContract(res.data);
       setSignatureCompleted(true);
     } catch (err: any) {
       alert(err.message || "Failed to sign agreement");

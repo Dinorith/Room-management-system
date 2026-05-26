@@ -141,18 +141,9 @@ export function Contracts() {
 
   const handleSimulateSign = async (contractId: string) => {
     try {
-      const res = await fetch(`http://localhost:8000/api/tenant-portal/contracts/${contractId}/sign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      if (res.ok) {
-        alert("Success: Simulated digital signing from RentFlow app! State synchronized.");
-        await fetchContracts();
-      } else {
-        alert("Failed to simulate tenant signature.");
-      }
+      await api.post(`/tenant-portal/contracts/${contractId}/sign`);
+      alert("Success: Simulated digital signing from RentFlow app! State synchronized.");
+      await fetchContracts();
     } catch (err) {
       console.error(err);
       alert("Simulation error.");

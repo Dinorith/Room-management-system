@@ -4,6 +4,7 @@ import {
   ArrowLeft, Check, Clock, AlertTriangle, Building2, Copy, Receipt, Zap, Shield, 
   CheckCircle2, Download, Printer, CheckCircle, Eye, Droplet
 } from "lucide-react";
+import { api } from "../lib/api";
 
 export function PublicPaymentPage() {
   const { paymentId } = useParams();
@@ -19,14 +20,10 @@ export function PublicPaymentPage() {
     const fetchInvoice = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/tenant-portal/payments/${paymentId}`);
-        if (!res.ok) {
-          throw new Error(res.status === 404 ? "Invoice not found or expired" : "Failed to load payment details");
-        }
-        const data = await res.json();
+        const res = await api.get(`/tenant-portal/payments/${paymentId}`);
         if (active) {
-          setPayment(data.data);
-          if (data.data.status === "paid") {
+          setPayment(res.data);
+          if (res.data.status === "paid") {
             setCheckoutCompleted(true);
           }
         }
@@ -52,18 +49,8 @@ export function PublicPaymentPage() {
   const handleSettlePayment = async () => {
     try {
       setIsSettling(true);
-      const res = await fetch(`/api/tenant-portal/payments/${paymentId}/pay`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ paymentMethod: "qr_code" }),
-      });
-      if (!res.ok) {
-        throw new Error("Unable to record payment");
-      }
-      const data = await res.json();
-      setPayment((prev: any) => ({ ...prev, status: "paid", paidDate: data.data.paid_date }));
+      const res = await api.post(`/tenant-portal/payments/${paymentId}/pay`, { paymentMethod: "qr_code" });
+      setPayment((prev: any) => ({ ...prev, status: "paid", paidDate: res.data.paid_date }));
       setCheckoutCompleted(true);
     } catch (err: any) {
       alert(err.message || "Failed to settle payment");
