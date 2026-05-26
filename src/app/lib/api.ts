@@ -30,6 +30,7 @@ class ApiClient {
     const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      'Bypass-Tunnel-Reminder': 'true',
       ...(options.headers as Record<string, string> || {}),
     };
 
