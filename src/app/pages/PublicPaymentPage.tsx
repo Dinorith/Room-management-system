@@ -17,32 +17,67 @@ export function PublicPaymentPage() {
 
   useEffect(() => {
     let active = true;
-    const fetchInvoice = async () => {
+    let pollInterval: any = null;
+
+    const fetchInvoice = async (isInitial = false) => {
       try {
-        setLoading(true);
+        if (isInitial) setLoading(true);
         const res = await api.get(`/tenant-portal/payments/${paymentId}`);
-        if (active) {
-          setPayment(res.data);
-          if (res.data.status === "paid") {
-            setCheckoutCompleted(true);
+        if (!active) return;
+
+        setPayment(res.data);
+        if (res.data.status === "paid") {
+          setCheckoutCompleted(true);
+          if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+          }
+        } else if (isInitial) {
+          // Auto-settle the payment if URL contains ?scan=true
+          const queryParams = new URLSearchParams(window.location.search);
+          if (queryParams.get("scan") === "true") {
+            try {
+              setIsSettling(true);
+              const payRes = await api.post(`/tenant-portal/payments/${paymentId}/pay`, { paymentMethod: "qr_code" });
+              if (active) {
+                setPayment((prev: any) => ({ 
+                  ...prev, 
+                  status: "paid", 
+                  paidDate: payRes.data?.paid_date || payRes.data?.paidDate || new Date().toISOString().split('T')[0] 
+                }));
+                setCheckoutCompleted(true);
+              }
+            } catch (err: any) {
+              console.error("Auto-settle via QR failed:", err);
+            } finally {
+              if (active) setIsSettling(false);
+            }
+          } else {
+            // Start polling if not paid and not scanning
+            pollInterval = setInterval(() => {
+              fetchInvoice(false);
+            }, 3000);
           }
         }
       } catch (err: any) {
-        if (active) {
+        if (active && isInitial) {
           setError(err.message || "Unable to load invoice");
         }
       } finally {
-        if (active) {
+        if (active && isInitial) {
           setLoading(false);
         }
       }
     };
 
     if (paymentId) {
-      fetchInvoice();
+      fetchInvoice(true);
     }
     return () => {
       active = false;
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
     };
   }, [paymentId]);
 
@@ -50,7 +85,11 @@ export function PublicPaymentPage() {
     try {
       setIsSettling(true);
       const res = await api.post(`/tenant-portal/payments/${paymentId}/pay`, { paymentMethod: "qr_code" });
-      setPayment((prev: any) => ({ ...prev, status: "paid", paidDate: res.data.paid_date }));
+      setPayment((prev: any) => ({ 
+        ...prev, 
+        status: "paid", 
+        paidDate: res.data?.paid_date || res.data?.paidDate || new Date().toISOString().split('T')[0] 
+      }));
       setCheckoutCompleted(true);
     } catch (err: any) {
       alert(err.message || "Failed to settle payment");
@@ -287,7 +326,11 @@ export function PublicPaymentPage() {
                   {/* QR Target SVG */}
                   <div className="bg-white rounded-[1.75rem] p-4 flex items-center justify-center relative shadow-inner">
                     <div className="w-36 h-36 md:w-40 md:h-40 relative">
-                      <QrSvg />
+                      <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.protocol}//${window.location.host}/pay/${paymentId}?scan=true`)}`}
+                        alt="KHQR Settle Code" 
+                        className="w-full h-full object-contain rounded-2xl"
+                      />
                       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
                         <div className="w-6.5 h-6.5 bg-[#0b2d49] rounded-md flex items-center justify-center text-[8px] font-black text-white">
                           ABA
