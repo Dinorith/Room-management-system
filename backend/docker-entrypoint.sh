@@ -13,6 +13,16 @@ if [ -n "$PORT" ]; then
     sed -i "s/listen \[::\]:80;/listen \[::\]:$PORT;/g" /etc/nginx/http.d/default.conf
 fi
 
+# Print database variables for debugging
+echo "Database Connection Diagnostics:"
+echo "  DB_CONNECTION: '$DB_CONNECTION'"
+echo "  DB_HOST: '$DB_HOST'"
+echo "  DB_PORT: '$DB_PORT'"
+echo "  DB_DATABASE: '$DB_DATABASE'"
+echo "  DB_USERNAME: '$DB_USERNAME'"
+echo "  DB_URL: '$DB_URL'"
+echo "  DATABASE_URL: '$DATABASE_URL'"
+
 # Check if APP_KEY is set, if not, generate it or warn the user
 if [ -z "$APP_KEY" ]; then
     echo "WARNING: APP_KEY environment variable is not set. Generating one..."
