@@ -6,6 +6,13 @@ echo "Setting permissions..."
 chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
 
+# If PORT environment variable is set (dynamic port mapping for Railway/Heroku), update Nginx config
+if [ -n "$PORT" ]; then
+    echo "Configuring Nginx to listen on dynamic port $PORT..."
+    sed -i "s/listen 80;/listen $PORT;/g" /etc/nginx/http.d/default.conf
+    sed -i "s/listen \[::\]:80;/listen \[::\]:$PORT;/g" /etc/nginx/http.d/default.conf
+fi
+
 # Check if APP_KEY is set, if not, generate it or warn the user
 if [ -z "$APP_KEY" ]; then
     echo "WARNING: APP_KEY environment variable is not set. Generating one..."
