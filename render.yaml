@@ -41,4 +41,4 @@ databases:
   # Dedicated PostgreSQL Database instance
   - name: room-rent-db
     plan: free
-    postgresVersion: 15
+
