@@ -16,6 +16,9 @@ fi
 if [ "$RUN_MIGRATIONS" = "true" ]; then
     echo "Running database migrations..."
     php artisan migrate --force
+
+    echo "Checking if database needs seeding..."
+    php artisan tinker --execute="if (\App\Models\User::count() === 0) { echo 'Seeding database...'; \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]); } else { echo 'Database already seeded.'; }"
 fi
 
 # Cache configuration, routes, and views for production optimization
