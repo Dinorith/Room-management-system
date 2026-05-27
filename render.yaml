@@ -1,0 +1,44 @@
+services:
+  # Docker-based Web Service for the Laravel API backend
+  - type: web
+    name: room-rent-backend
+    env: docker
+    dockerContext: ./backend
+    dockerfilePath: ./backend/Dockerfile
+    plan: free
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_KEY
+        sync: false # User can input this in Render dashboard or generate it
+      - key: RUN_MIGRATIONS
+        value: "true"
+      # Database connection configuration (linked to PostgreSQL below)
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: room-rent-db
+          property: host
+      - key: DB_PORT
+        value: "5432"
+      - key: DB_DATABASE
+        fromDatabase:
+          name: room-rent-db
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: room-rent-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: room-rent-db
+          property: password
+
+databases:
+  # Dedicated PostgreSQL Database instance
+  - name: room-rent-db
+    plan: free
+    postgresVersion: 15
