@@ -1,1129 +1,871 @@
-# Admin Dashboard - Functional Requirements
+# RentFlow — Functional Requirements Document
 
 ## Document Information
-- **Project Name:** Admin Dashboard for Property/Rental Management
-- **Version:** 1.0
+- **Project Name:** RentFlow — Property & Room Management System
+- **Version:** 2.0
 - **Date Created:** May 25, 2026
-- **Last Updated:** May 25, 2026
+- **Last Updated:** May 28, 2026
 
 ---
 
 ## 1. OVERVIEW & OBJECTIVES
 
 ### 1.1 Purpose
-The Admin Dashboard is a comprehensive web application designed to manage rental properties, tenants, payments, maintenance requests, utilities, contracts, and generate financial reports. It provides property managers with centralized control over all operational aspects of their rental business.
+RentFlow is a multi-owner SaaS web application for managing rental properties, tenants, digital lease contracts, billing invoices, maintenance tickets, utility metering, expense tracking, and financial reporting. It provides two distinct workspaces: a **Super Admin Console** for platform-wide oversight and an **Owner Dashboard** for individual landlord operations.
 
 ### 1.2 Target Users
-- Super Admins (Platform Administrators)
-- Property Owners / Landlords
-- Property Managers
-- Building Administrators
-- Finance/Accounting Staff
-- Maintenance Coordinators
+- **Super Admins** — Platform administrators who manage all owner accounts, view system-wide analytics, and configure global settings.
+- **Property Owners / Landlords** — Registered by Super Admin; each owner manages their own rooms, tenants, invoices, contracts, maintenance, utilities, expenses, and reports in an isolated workspace.
 
 ### 1.3 Key Objectives
-- Streamline tenant and room management
-- Automate payment tracking and reminders
-- Centralize maintenance request handling
-- Monitor utility consumption and costs
-- Generate comprehensive financial reports
-- Provide real-time dashboard analytics
+- Provide a centralized platform where multiple property owners can independently manage their rental business
+- Automate invoice generation, payment tracking, and late fee calculation
+- Digitize lease agreements with public tenant signing portals
+- Centralize maintenance request handling with cost tracking
+- Monitor utility consumption (water & electricity) and link readings to invoices
+- Generate comprehensive financial reports with PDF, Excel, and CSV exports
+- Deliver real-time dashboard analytics with interactive charts
 
-### 1.4 Project Scope
-The scope of this project covers the development of an Admin Dashboard and public-facing portal for Property/Rental Management. The system integrates the following key modules:
-- **Authentication & Authorization:** Secure login/registration with role-based access control (Admin, Manager, Staff) and encrypted sessions.
-- **Interactive Dashboard:** Dynamic, real-time analytics displaying occupancy rates, outstanding bills, total revenue, and quick access statistics cards.
-- **Property & Room Management:** Complete inventory management of rooms, their capacities, specifications, pricing types, amenities, and status tracking (vacant, occupied, maintenance).
-- **Tenant Directory:** A structured database of all active and historical tenants with contact info, emergency logs, room histories, and payment trends.
-- **Payment & Invoice Management:** Automatic generation of payment schedules, manual recording of cash/transfer/cheque payments, receipt uploads, late fee tracking, and automated reminders.
-- **Maintenance & Ticket Tracking:** Streamlined coordination of building maintenance issues, assignment to workers, priority categorization, and resolution progress monitoring.
-- **Utility Ledger:** Logging manual meter readings (water and electricity), configuring dynamic rates, auto-calculating usage, and generating transparent utility billing.
-- **Lease & Contract Management:** Drafting rental agreements, attaching PDFs/images, managing renewal rules, termination settlements, and setting up automatic expiration reminders.
-- **Financial Analytics & Reporting:** Comprehensive generation of Income Reports, Expense Reports, Profit & Loss Statements, and Occupancy summaries with PDF/Excel/CSV exports.
-- **Public Tenant Portals:** Secure, lightweight public pages for quick payment submissions and digital contract signatures without requiring a full tenant portal login.
+### 1.4 System Architecture
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, TypeScript, Vite 6, Vanilla CSS (custom design system), React Router 7, Recharts |
+| **Backend** | PHP 8.2+, Laravel 12, Sanctum Token Authentication, RESTful JSON API |
+| **Database** | MySQL 8+ |
+| **Mail** | SMTP Protocol (Gmail App Passwords) |
 
-### 1.5 System Limitations
-To maintain a streamlined, secure, and focused application, the following boundaries and limitations are established for the current scope:
-- **Manual Payment Verification:** The system provides tools to log bank transfers, cash, or cheques and upload proof of payment, but does **not** include direct API integration with third-party payment gateways (e.g., Stripe, PayPal, or local credit card processors) for instant online credit card clearing.
-- **Manual Utility Data Input:** Utility consumption calculations are automated, but the meter data must be recorded manually by administrators. Direct IoT/smart meter automatic data syncing is out of scope.
-- **Basic Document Handling:** Lease agreements and receipts are handled as static attachments (PDF/JPEG/PNG). Advanced Optical Character Recognition (OCR) for receipt scanning and direct legally-binding DocuSign/Adobe Sign integrations are not included.
-- **Third-Party Messaging Channels:** Notifications (SMS/Emails) are dispatched via standard webhooks/APIs (like Twilio, Mailgun, or standard SMTP servers) but do not support advanced features such as real-time WebSocket-based in-app chat, or native mobile push notifications.
-- **No Native Mobile App:** The entire platform is a highly responsive web application built with HTML, Tailwind CSS, React, and Laravel. While it scales beautifully on mobile browsers, it does not include standalone native iOS or Android applications on app stores.
-- **Multi-Tenant Scoping Boundary:** The system is built as a multi-owner SaaS platform where landlords manage their respective properties in perfect isolation. Direct cross-owner communication or cross-owner property trades are not natively supported and must be done through the Super Admin platform console.
+### 1.5 System Defaults (Hardcoded)
+- **Currency:** USD ($) — not configurable by any user
+- **Timezone:** Asia/Phnom_Penh (GMT+7) — not configurable by any user
+- **Icons:** Lucide React icon library — no emojis used anywhere in the UI
+
+### 1.6 System Limitations
+- **Manual Payment Verification:** The system logs bank transfers, cash, or cheque payments and supports proof-of-payment uploads, but does not integrate with third-party payment gateways (Stripe, PayPal, etc.) for instant online clearing.
+- **Manual Utility Data Input:** Meter data is recorded manually by administrators. IoT/smart meter auto-syncing is out of scope.
+- **Basic Document Handling:** Lease agreements and receipts are handled as static attachments (PDF/JPEG/PNG). OCR and DocuSign integrations are not included.
+- **No Native Mobile App:** The platform is a responsive web application. No standalone iOS or Android apps are provided.
+- **Multi-Owner Isolation:** Each landlord manages their properties in complete isolation. Cross-owner communication or property trades are not supported natively.
 
 ---
-
 
 ## 2. SYSTEM FEATURES
 
 ### 2.1 AUTHENTICATION & USER MANAGEMENT
 
 #### FR 2.1.1 User Login
-- **Description:** Users must authenticate with email and password, which determines their system access level (Super Admin vs Property Owner/Landlord)
+- **Description:** Users authenticate with email and password to access their role-specific workspace
 - **Acceptance Criteria:**
-  - User can login with valid credentials
-  - Deactivated landlord accounts are restricted from accessing system resources and receive clear account suspension messages (403 forbidden)
-  - System displays error for invalid credentials
-  - User session is maintained with Sanctum tokens
-  - Redirects user to appropriate workspace (Super Admin Console or Owner Dashboard) based on role
-  - Password reset/change functionality available
+  - Login with valid email and password
+  - System returns a Sanctum Bearer token on successful authentication
+  - Redirects Super Admins to `/super-admin` console
+  - Redirects Owners to `/` owner dashboard
+  - Deactivated owner accounts receive 403 Forbidden with account suspension message
+  - Invalid credentials return clear error messages
 
 #### FR 2.1.2 User Logout
 - **Description:** Users can securely logout from the system
 - **Acceptance Criteria:**
-  - Session is terminated
-  - Sanctum API token is invalidated
-  - User is redirected to login page
-  - Local state and tokens are cleared
+  - Active Sanctum token is invalidated on the server
+  - Local session state and tokens are cleared
+  - User is redirected to the login page
 
 #### FR 2.1.3 User Registration
-- **Description:** Public registration is disabled to maintain secure closed-loop SaaS platform operations. Landlord accounts are registered directly by Super Admin.
+- **Description:** Public self-registration is disabled for security
 - **Acceptance Criteria:**
-  - Public registration attempts receive a "Registration is disabled" exception (403)
-  - Landlord accounts are created inside the Super Admin Console
+  - Public registration attempts return 403 "Registration is disabled"
+  - Owner accounts are created exclusively by Super Admin from the console
 
-#### FR 2.1.4 User Profile Management
-- **Description:** Users can update their profile information
+#### FR 2.1.4 Password Management
+- **Description:** Users can change their own password
 - **Acceptance Criteria:**
-  - Update name, email, phone number
-  - Change password functionality
-  - View profile information
+  - Authenticated users can update their password via `PUT /api/auth/password`
+  - Current password validation is required before accepting a new password
 
+#### FR 2.1.5 Profile Management
+- **Description:** Users can view and update their profile
+- **Acceptance Criteria:**
+  - View profile information (name, email)
+  - Update name and email via Settings page
 
 ---
 
-### 2.2 DASHBOARD
+### 2.2 SUPER ADMIN CONSOLE
 
-#### FR 2.2.1 Dashboard Overview
-- **Description:** Display summary statistics of the rental business
+#### FR 2.2.1 Super Admin Dashboard
+- **Description:** System-wide overview dashboard showing aggregate platform statistics
 - **Acceptance Criteria:**
-  - Show total number of tenants
-  - Display occupied vs vacant rooms
-  - Show total revenue collected
-  - Display pending payments count
-  - Show maintenance requests count
-  - Display total expenses
-  - Calculate and show net profit
-  - Data updates in real-time
+  - **Owner Statistics:** Total Owners, Active Owners, Inactive/Suspended Owners
+  - **Property Statistics:** Total Properties (Rooms), Occupied Rooms, Vacant Rooms, Maintenance Rooms, Occupancy Rate (%)
+  - **Payment Overview:** Total Invoices, Paid Invoices, Pending Invoices, Overdue Invoices, Total Revenue (system-wide)
+  - **Recent Owners Table:** Owner name, email, number of properties, status (Active/Inactive), created date
+  - **Recent Properties Table:** Room name, owner, price, status, location
+  - **Recent Payments Table:** Invoice ID, owner, tenant name, amount, status (Paid/Pending), date
+  - Refresh button to reload all data in real-time
 
-#### FR 2.2.2 Recent Activity Feed
-- **Description:** Show recent activities across the system
+#### FR 2.2.2 Owner Account Management (CRUD)
+- **Description:** Super Admin creates, views, edits, and deletes owner accounts
 - **Acceptance Criteria:**
-  - Display latest payments received
-  - Show new maintenance requests
-  - Display new tenant registrations
-  - Show contract expirations
-  - Activity sorted by most recent first
+  - List all owners with pagination, search, and status filters
+  - Create new owner with name, email, and password (auto-provisioned with default settings)
+  - Edit owner profile (name, email, password)
+  - Permanently delete owner with cascading delete warnings
+  - Search owners by name or email
+
+#### FR 2.2.3 Owner Account Activation Toggle
+- **Description:** Instantly suspend or restore owner access
+- **Acceptance Criteria:**
+  - Toggle `is_active` flag for any owner
+  - Deactivated owners are blocked from all API routes via `EnsureOwnerIsActive` middleware
+  - Active/Inactive status badge displayed in the owners list
+
+#### FR 2.2.4 Global Property Audit
+- **Description:** View and manage all rooms across all owners
+- **Acceptance Criteria:**
+  - List all platform rooms filterable by owner and room status
+  - Delete vacant or maintenance rooms
+  - Occupied rooms cannot be deleted (validation error)
+  - Search properties by room number or owner name
+
+#### FR 2.2.5 Super Admin Invoices
+- **Description:** View all invoices across all owners
+- **Acceptance Criteria:**
+  - List all invoices system-wide with owner, tenant, amount, status, and date
+  - Filter by payment status
+  - Search by tenant or owner name
+
+#### FR 2.2.6 Super Admin Payments
+- **Description:** View all payments across all owners
+- **Acceptance Criteria:**
+  - Display payment records from all owners
+  - Show payment method, amount, date, and status
+
+#### FR 2.2.7 Super Admin Analytics
+- **Description:** Platform-wide analytics and charts
+- **Acceptance Criteria:**
+  - Occupancy distribution chart (Occupied vs Vacant vs Maintenance)
+  - Monthly revenue trends chart
+  - Payment status distribution chart
+  - Owner property distribution chart
+
+#### FR 2.2.8 Activity Logs
+- **Description:** View platform-wide activity logs
+- **Acceptance Criteria:**
+  - Display recent actions (owner created, property added, payment recorded, etc.)
   - Timestamp for each activity
+  - Filterable by date
 
-#### FR 2.2.3 Quick Statistics Cards
-- **Description:** Display key metrics in card format
+#### FR 2.2.9 Super Admin Settings
+- **Description:** View platform-level settings
 - **Acceptance Criteria:**
-  - Occupancy rate percentage
-  - Average rent per room
-  - Monthly revenue trend
-  - Payment collection rate
-  - Maintenance response time
-  - Interactive cards with drill-down capability
+  - View platform name configuration
+  - Currency displayed as read-only "USD ($) — US Dollar" (locked)
+  - Timezone displayed as read-only "Asia/Phnom_Penh (GMT+7)" (locked)
 
 ---
 
-### 2.3 TENANT MANAGEMENT
+### 2.3 OWNER DASHBOARD
 
-#### FR 2.3.1 View All Tenants
-- **Description:** Display list of all tenants with pagination
+#### FR 2.3.1 Dashboard Overview
+- **Description:** Display summary statistics of the owner's rental business
 - **Acceptance Criteria:**
-  - List shows: name, room, phone, email, move-in date, status
-  - Support pagination (10/20/50 items per page)
-  - Search by tenant name, email, or phone
-  - Filter by status (active, inactive, evicted)
-  - Sort by name, move-in date, or status
-  - Display tenant photo/avatar
+  - Total number of tenants
+  - Occupied vs vacant rooms count
+  - Total revenue collected
+  - Pending payments count
+  - Maintenance requests count
+  - Total expenses
+  - Net profit calculation
+  - Occupancy rate percentage
+  - Data fetched from `/api/dashboard/overview`
 
-#### FR 2.3.2 Add New Tenant
-- **Description:** Create new tenant records
+#### FR 2.3.2 Dashboard Alerts
+- **Description:** Display actionable alerts on the dashboard
 - **Acceptance Criteria:**
-  - Form with fields: name, room assignment, phone, email, move-in date
-  - Require: ID number, emergency contact
-  - Validate email format
-  - Validate phone number format
-  - Assign room from available list
-  - Auto-calculate contract end date
-  - Save confirmation message
+  - Overdue payments alert
+  - Expiring contracts alert (30-day and 7-day warnings)
+  - Pending maintenance requests alert
+  - Fetched from `/api/dashboard/alerts`
 
-#### FR 2.3.3 View Tenant Details
-- **Description:** Display comprehensive tenant information
+#### FR 2.3.3 Recent Activity Feed
+- **Description:** Show recent activities in the owner's workspace
 - **Acceptance Criteria:**
-  - Show all tenant information
-  - Display current and past contracts
-  - Show payment history
-  - Display maintenance requests reported
-  - Show utility consumption
-  - Display emergency contact information
-  - Show lease expiration date
-  - Display any pending payments
-
-#### FR 2.3.4 Update Tenant Information
-- **Description:** Modify existing tenant details
-- **Acceptance Criteria:**
-  - Edit name, phone, email
-  - Update emergency contact
-  - Change room assignment
-  - Update status (active/inactive)
-  - Audit trail of changes
-  - Confirmation before saving
-
-#### FR 2.3.5 Delete Tenant
-- **Description:** Remove tenant from system
-- **Acceptance Criteria:**
-  - Confirmation dialog before deletion
-  - Check for active contracts before deletion
-  - Archive tenant data instead of permanent deletion
-  - Log deletion with timestamp and user
-  - Prevent deletion of tenant with pending payments
-
-#### FR 2.3.6 Tenant Communications
-- **Description:** Send notifications to tenants using supported channels
-- **Acceptance Criteria:**
-  - Send payment reminders and custom announcements via simulated SMS queueing
-  - Send Telegram Channel Broadcasts for general announcements
-  - Reply directly to tenants via integrated Telegram chat channels
-  - Send maintenance updates and notification records tracked in the dashboard
+  - Latest payments received
+  - New maintenance requests
+  - Contract status changes
+  - Sorted by most recent first with timestamps
 
 ---
 
 ### 2.4 ROOM MANAGEMENT
 
 #### FR 2.4.1 View All Rooms
-- **Description:** Display list of all rooms with status
+- **Description:** Display list of all rooms belonging to the owner
 - **Acceptance Criteria:**
-  - Show room number, type, status, tenant, rent amount
-  - Filter by status (occupied, vacant, maintenance)
-  - Filter by room type (standard, deluxe, suite)
-  - Sort by room number, rent, or status
-  - Display amenities for each room
+  - Show room number, room type, status, assigned tenant, rent amount
+  - Filter by status (Occupied, Vacant, Maintenance)
+  - Filter by room type
   - Color-coded status indicators
+  - Pagination support
 
 #### FR 2.4.2 Add New Room
-- **Description:** Create new room records
+- **Description:** Create a new room record
 - **Acceptance Criteria:**
-  - Enter room number (unique)
-  - Select room type
-  - Enter rent amount
+  - Enter room number (unique per owner)
+  - Select room type from configured types
+  - Enter rent amount (in USD)
   - Set room capacity
-  - Add amenities (multi-select)
-  - Upload room photos
-  - Set initial status to "vacant"
-  - Confirmation message
+  - Add description/notes
+  - Initial status defaults to "Vacant"
 
 #### FR 2.4.3 View Room Details
 - **Description:** Display comprehensive room information
 - **Acceptance Criteria:**
-  - Show all room specifications
-  - Display current tenant information
-  - Show payment history for room
-  - Display maintenance history
-  - Show utility readings
-  - Display room photos
-  - Show contract details
+  - All room specifications
+  - Current tenant information (if occupied)
+  - Room type details
+  - Payment and maintenance history
 
-#### FR 2.4.4 Update Room Details
+#### FR 2.4.4 Update Room
 - **Description:** Modify room information
 - **Acceptance Criteria:**
-  - Update rent amount with effective date
-  - Modify room type
-  - Add/remove amenities
-  - Update room photos
-  - Change room capacity
-  - Update description/notes
+  - Update rent amount, room type, capacity, description
+  - Change room status manually
 
 #### FR 2.4.5 Delete Room
 - **Description:** Remove room from system
 - **Acceptance Criteria:**
-  - Confirmation dialog
-  - Cannot delete occupied room
-  - Archive room data
-  - Log deletion with timestamp
-  - Reassign pending maintenance requests
+  - Confirmation dialog before deletion
+  - Cannot delete occupied rooms
+  - Log deletion event
 
-#### FR 2.4.6 Room Status Tracking
-- **Description:** Track room status changes
+#### FR 2.4.6 Room Types Management
+- **Description:** Configure custom room types with pricing and amenities
 - **Acceptance Criteria:**
-  - Manual status update (occupied/vacant/maintenance)
-  - Automatic status update on tenant assignment
-  - Automatic status update on tenant removal
-  - Status change history/audit trail
-  - Notification on status changes
+  - Create room types with name, base price, capacity, amenities list, and description
+  - Edit and delete room types
+  - View room type statistics (total rooms, occupancy rate per type)
+  - Active room types filter for room assignment dropdowns
 
 ---
 
-### 2.5 PAYMENT MANAGEMENT
+### 2.5 TENANT MANAGEMENT
 
-#### FR 2.5.1 View All Payments
-- **Description:** Display list of all payments with filters
+#### FR 2.5.1 View All Tenants
+- **Description:** Display list of all tenants belonging to the owner
 - **Acceptance Criteria:**
-  - Show: tenant name, room, amount, due date, paid date, status
-  - Filter by payment status (pending, paid, overdue)
-  - Filter by date range
-  - Filter by payment method
-  - Sort by due date, amount, or status
+  - Show name, room, phone, email, move-in date, status
+  - Search by name, email, or phone
+  - Filter by status (Active, Inactive)
   - Pagination support
-  - Export to CSV/PDF
 
-#### FR 2.5.2 Record New Payment
+#### FR 2.5.2 Add New Tenant
+- **Description:** Create new tenant record
+- **Acceptance Criteria:**
+  - Enter name, phone, email, move-in date
+  - Optional: ID number, emergency contact, risk score
+  - Assign room from available vacant rooms
+  - Validate email format and phone number
+
+#### FR 2.5.3 View Tenant Details
+- **Description:** Display all tenant information
+- **Acceptance Criteria:**
+  - Personal information
+  - Assigned room details
+  - Payment history
+  - Contract information
+  - Emergency contact
+
+#### FR 2.5.4 Update Tenant
+- **Description:** Modify tenant information
+- **Acceptance Criteria:**
+  - Edit name, phone, email, emergency contact
+  - Update status (Active/Inactive)
+  - Change room assignment
+
+#### FR 2.5.5 Delete Tenant
+- **Description:** Remove tenant from system
+- **Acceptance Criteria:**
+  - Confirmation dialog before deletion
+  - Archive tenant data
+
+---
+
+### 2.6 CONTRACT MANAGEMENT
+
+#### FR 2.6.1 View All Contracts
+- **Description:** Display list of all contracts for the owner
+- **Acceptance Criteria:**
+  - Show tenant, room, start date, end date, rent amount, status
+  - Filter by status (Draft, Active, Signed, Expired, Terminated)
+  - Show expiration alerts
+  - Pagination support
+
+#### FR 2.6.2 Create New Contract
+- **Description:** Create a lease agreement
+- **Acceptance Criteria:**
+  - Select tenant and room
+  - Enter start and end dates
+  - Enter rent amount
+  - Add contract terms/conditions
+  - Upload contract document (PDF/Image)
+  - Initial status: "Draft"
+
+#### FR 2.6.3 View Contract Details
+- **Description:** Display contract information
+- **Acceptance Criteria:**
+  - All contract terms and details
+  - Tenant and room information
+  - Uploaded contract document viewer
+  - Digital signature display (if signed via tenant portal)
+  - Signature timestamp
+
+#### FR 2.6.4 Update Contract
+- **Description:** Modify contract details
+- **Acceptance Criteria:**
+  - Update terms, dates, rent amount
+  - Replace contract document
+  - Change contract status
+
+#### FR 2.6.5 Renew Contract
+- **Description:** Renew an expired contract
+- **Acceptance Criteria:**
+  - Auto-populate renewal terms from original contract
+  - Option to update rent amount
+  - Create new contract record via `POST /api/contracts/{id}/renew`
+
+#### FR 2.6.6 Contract Expiration Alerts
+- **Description:** Alert on upcoming expirations
+- **Acceptance Criteria:**
+  - Contracts expiring within 30 days flagged on dashboard
+  - Available via `/api/contracts/expiring-soon`
+
+---
+
+### 2.7 PAYMENT & INVOICE MANAGEMENT
+
+#### FR 2.7.1 View All Payments
+- **Description:** Display list of all payments/invoices
+- **Acceptance Criteria:**
+  - Show tenant name, room, amount, due date, paid date, status, payment method
+  - Filter by status (Pending, Paid, Overdue)
+  - Search and pagination support
+  - Late fee tracking
+
+#### FR 2.7.2 Generate Monthly Invoices
+- **Description:** Auto-generate invoices for all active tenants
+- **Acceptance Criteria:**
+  - Batch generate invoices for a given month via `POST /api/payments/generate-invoices`
+  - Link rent charges and utility charges to generated invoices
+  - Auto-flag overdue invoices
+
+#### FR 2.7.3 Record Payment
 - **Description:** Log payment received from tenant
 - **Acceptance Criteria:**
   - Select tenant and room
   - Enter payment amount
-  - Select payment method (cash, bank transfer, cheque)
-  - Enter payment date
-  - Add payment notes/reference
+  - Select payment method (Cash, Bank Transfer, Cheque)
+  - Enter payment date and reference notes
   - Attach receipt/proof of payment
-  - Auto-calculate change if needed
-  - Confirmation message with receipt
+  - Update invoice status to "Paid"
 
-#### FR 2.5.3 View Payment Details
-- **Description:** Display comprehensive payment information
+#### FR 2.7.4 Invoice Details Modal
+- **Description:** View detailed invoice with property-specific details
 - **Acceptance Criteria:**
-  - Show all payment details
-  - Display tenant information
-  - Show receipt/proof document
-  - Display payment history for tenant
-  - Show remaining balance
-  - Show payment breakdown (rent, utilities, etc.)
+  - Display owner's property name, address, phone, and email (fetched from settings)
+  - Show room number and room type
+  - Line-item breakdown: rent, utilities, late fees
+  - Invoice number and date
+  - Payment status badge
 
-#### FR 2.5.4 Payment Schedule
-- **Description:** View monthly payment schedule
-- **Acceptance Criteria:**
-  - Display all expected payments for month
-  - Show payment status for each
-  - Highlight overdue payments
-  - Show total expected vs collected
-  - Filter by tenant or room
-  - Calendar view option
-
-#### FR 2.5.5 Late Payments Tracking
+#### FR 2.7.5 Late Payment Tracking
 - **Description:** Monitor overdue payments
 - **Acceptance Criteria:**
   - Automatic overdue flagging
   - Display days overdue
-  - Show late payment fees
-  - Send automatic payment reminders
-  - Generate late payment reports
-  - Priority highlighting for old overdue
+  - Late fee calculation
+  - Available via `/api/payments/late`
 
-#### FR 2.5.6 Payment Methods
-- **Description:** Support multiple payment methods
+#### FR 2.7.6 Payment Schedule
+- **Description:** View monthly payment schedule
 - **Acceptance Criteria:**
-  - Cash payments recorded manually
-  - Bank transfers recorded manually with proof of payment attachment
-  - Cheques recorded manually
-  - Public tenant payment gateway allowing tenants to view invoice, check QR codes, and upload transfer receipts (proof-of-payment)
-  - Record and track payment method preferences
-
-#### FR 2.5.7 Payment Reports
-- **Description:** Generate payment-related reports
-- **Acceptance Criteria:**
-  - Monthly income report
-  - Collection rate by tenant
-  - Payment method breakdown
-  - Overdue payment report
-  - Payment trends analysis
+  - Display all expected payments for a given month
+  - Show status for each (Paid, Pending, Overdue)
+  - Available via `/api/payments/schedule/{month}`
 
 ---
 
-### 2.6 MAINTENANCE MANAGEMENT
+### 2.8 MAINTENANCE MANAGEMENT
 
-#### FR 2.6.1 View All Maintenance Requests
+#### FR 2.8.1 View All Maintenance Requests
 - **Description:** Display list of maintenance requests
 - **Acceptance Criteria:**
-  - Show: room, title, priority, status, reported date
-  - Filter by status (pending, in-progress, completed)
-  - Filter by priority (low, medium, high, urgent)
-  - Filter by date range
-  - Sort by priority, date, or status
+  - Show room, title, priority, status, reported date
+  - Filter by status (Pending, In Progress, Completed)
+  - Filter by priority (Low, Medium, High, Urgent)
   - Color-coded priority indicators
   - Pagination support
 
-#### FR 2.6.2 Create Maintenance Request
+#### FR 2.8.2 Create Maintenance Request
 - **Description:** Report new maintenance issue
 - **Acceptance Criteria:**
-  - Select room or location
-  - Enter issue title
-  - Enter detailed description
-  - Set priority level (low, medium, high, urgent)
-  - Option to attach photos
-  - Auto-assign to maintenance team
-  - Estimated resolution time
-  - Confirmation notification
+  - Select room
+  - Enter title and detailed description
+  - Set priority level
+  - Optional: attach photos
+  - Auto-assign to maintenance workflow
 
-#### FR 2.6.3 View Maintenance Request Details
-- **Description:** Display comprehensive maintenance information
+#### FR 2.8.3 Update Maintenance Request
+- **Description:** Update request status and details
 - **Acceptance Criteria:**
-  - Show all request details
-  - Display tenant information
-  - Show attached photos/images
-  - Display priority and status
-  - Show assigned staff member
-  - Show work notes and updates
-  - Display completion status and date
-  - Show cost estimate and actual cost
+  - Change status (Pending → In Progress → Completed)
+  - Update priority
+  - Add work notes
+  - Record actual repair cost
+  - Update assigned worker
 
-#### FR 2.6.4 Update Maintenance Request
-- **Description:** Update maintenance request status and details
+#### FR 2.8.4 Maintenance Statistics
+- **Description:** View maintenance analytics
 - **Acceptance Criteria:**
-  - Change status (pending → in-progress → completed)
-  - Update priority if needed
-  - Add work notes/comments
-  - Attach completion photos
-  - Record actual cost
-  - Update completion date
-  - Send update notifications
-
-#### FR 2.6.5 Assign Maintenance Staff
-- **Description:** Assign requests to maintenance personnel
-- **Acceptance Criteria:**
-  - Select staff member from list
-  - Auto-assign based on availability
-  - Send notification to assigned staff
-  - Track staff workload
-  - Display staff assignment history
-
-#### FR 2.6.6 Maintenance History
-- **Description:** View maintenance history for room/property
-- **Acceptance Criteria:**
-  - Show all past maintenance for room
-  - Display repair patterns/recurring issues
-  - Show cost history
-  - Filter by category
-  - Export maintenance history
-
-#### FR 2.6.7 Maintenance Reports
-- **Description:** Generate maintenance analytics
-- **Acceptance Criteria:**
-  - Maintenance cost analysis
-  - Average resolution time
-  - Most frequent issues
-  - Staff performance metrics
-  - Budget vs actual spending
+  - Total requests by status
+  - Average resolution metrics
+  - Available via `/api/maintenance/stats`
 
 ---
 
-### 2.7 EXPENSE MANAGEMENT
+### 2.9 EXPENSE MANAGEMENT
 
-#### FR 2.7.1 View All Expenses
-- **Description:** Display list of all expenses
+#### FR 2.9.1 View All Expenses
+- **Description:** Display list of all recorded expenses
 - **Acceptance Criteria:**
-  - Show: category, description, amount, date
-  - Filter by category (repairs, cleaning, utilities, taxes, insurance)
+  - Show category, description, amount, date
+  - Filter by category (Repairs, Cleaning, Utilities, Taxes, Insurance, etc.)
   - Filter by date range
-  - Sort by amount, date, or category
+  - Monthly totals
   - Pagination support
-  - Monthly expense summary
 
-#### FR 2.7.2 Record New Expense
-- **Description:** Log new expense
+#### FR 2.9.2 Record New Expense
+- **Description:** Log a new business expense
 - **Acceptance Criteria:**
   - Select expense category
-  - Enter description
-  - Enter amount
+  - Enter description and amount (in USD)
   - Select expense date
-  - Optional: attach receipt/invoice
-  - Add notes/reference
-  - Confirmation message
+  - Add optional notes
 
-#### FR 2.7.3 View Expense Details
-- **Description:** Display expense information
-- **Acceptance Criteria:**
-  - Show all expense details
-  - Display attached receipt/invoice
-  - Show related room/tenant if applicable
-  - Show payment status if vendor
-  - Display approval status
-
-#### FR 2.7.4 Update Expense
-- **Description:** Modify expense records
-- **Acceptance Criteria:**
-  - Edit category, description, amount
-  - Update expense date
-  - Update attached documents
-  - Mark as reimbursable if applicable
-
-#### FR 2.7.5 Delete Expense
+#### FR 2.9.3 Delete Expense
 - **Description:** Remove expense record
 - **Acceptance Criteria:**
-  - Confirmation dialog
-  - Only deletion of recent/unverified expenses
-  - Audit trail of deletion
-  - Archive instead of permanent deletion
+  - Confirmation dialog before deletion
 
-#### FR 2.7.6 Expense Reports
-- **Description:** Generate expense analytics
+#### FR 2.9.4 Expense By Category
+- **Description:** Filter expenses by category
 - **Acceptance Criteria:**
-  - Monthly expense breakdown by category
-  - Year-to-date expense analysis
-  - Budget vs actual expenses
-  - Expense trends
-  - Category-wise cost analysis
-  - Export to CSV/PDF
+  - Available via `/api/expenses/category/{category}`
+
+#### FR 2.9.5 Monthly Expense Summary
+- **Description:** View expenses for a specific month
+- **Acceptance Criteria:**
+  - Available via `/api/expenses/monthly/{month}`
 
 ---
 
-### 2.8 UTILITIES MANAGEMENT
+### 2.10 UTILITIES MANAGEMENT
 
-#### FR 2.8.1 View Utility Readings
+#### FR 2.10.1 View Utility Readings
 - **Description:** Display utility readings for all rooms
 - **Acceptance Criteria:**
-  - Show: room, electricity, water, month, costs
+  - Show room, electricity reading, water reading, month, calculated costs
   - Filter by month/year
-  - Filter by room or range
-  - Sort by cost or consumption
   - Pagination support
-  - Monthly totals
 
-#### FR 2.8.2 Record Utility Reading
+#### FR 2.10.2 Record Utility Reading
 - **Description:** Log utility meter readings
 - **Acceptance Criteria:**
   - Select room
-  - Enter electricity reading
-  - Enter water reading
+  - Enter electricity reading (kWh)
+  - Enter water reading (m³)
   - Enter reading date
-  - Auto-calculate consumption
-  - Auto-calculate costs
-  - Confirmation message
+  - Auto-calculate consumption and costs based on configured rates
 
-#### FR 2.8.3 Utility Rate Management
-- **Description:** Manage utility rates
+#### FR 2.10.3 Utility Rate Configuration
+- **Description:** Configure electricity and water rates
 - **Acceptance Criteria:**
-  - Set electricity rate (per unit)
-  - Set water rate (per unit)
-  - Effective date for rate changes
-  - Historical rate tracking
-  - Rate change audit trail
-  - Notification of rate changes
+  - Set electricity rate per kWh (in USD)
+  - Set water rate per m³ (in USD)
+  - View current rates via `GET /api/utilities/rates`
+  - Update rates via `PUT /api/utilities/rates`
 
-#### FR 2.8.4 Utility Consumption Tracking
-- **Description:** Track and analyze utility usage
+#### FR 2.10.4 Link Utility to Invoice
+- **Description:** Attach utility charges to a tenant's monthly invoice
 - **Acceptance Criteria:**
-  - Calculate consumption per month
-  - Compare month-to-month usage
-  - Identify high consumption areas
-  - Calculate cost per unit
-  - Display consumption trends
-  - Alert on unusual consumption
+  - Link a recorded utility reading to a generated invoice via `POST /api/utilities/{id}/link`
+  - Utility amount appears on the tenant's invoice breakdown
 
-#### FR 2.8.5 Utility Reports
-- **Description:** Generate utility analytics
+#### FR 2.10.5 Monthly Utility Summary
+- **Description:** View utility readings for a specific month
 - **Acceptance Criteria:**
-  - Monthly utility report
-  - Cost breakdown by room
-  - Total property consumption
-  - Consumption trends
-  - Cost analysis
-  - Year-to-date summary
-
-#### FR 2.8.6 Utility Billing
-- **Description:** Generate utility bills for tenants and link them to rent invoices
-- **Acceptance Criteria:**
-  - Calculate individual tenant utility charges based on recorded electricity/water readings and base rates
-  - Link logged utility readings directly to a generated monthly invoice (`/utilities/{id}/link`)
-  - Include computed utility amounts on the tenant's public invoice receipt
-  - Track payment status of utility charges through the main invoice ledger
+  - Available via `/api/utilities/monthly/{month}`
 
 ---
 
-### 2.9 CONTRACTS MANAGEMENT
+### 2.11 FINANCIAL REPORTS
 
-#### FR 2.9.1 View All Contracts
-- **Description:** Display list of all contracts
+#### FR 2.11.1 Income Report
+- **Description:** Generate income report
 - **Acceptance Criteria:**
-  - Show: tenant, room, start date, end date, rent amount, status
-  - Filter by status (active, expired, terminated)
-  - Filter by date range
-  - Show expiration alerts
-  - Sort by end date or rent amount
-  - Pagination support
+  - Total expected income vs actual collected
+  - Income breakdown by tenant
+  - Monthly trends
+  - Available via `/api/reports/income`
 
-#### FR 2.9.2 Create New Contract
-- **Description:** Create rental agreement
-- **Acceptance Criteria:**
-  - Select tenant
-  - Select room
-  - Enter start date
-  - Enter end date
-  - Enter rent amount
-  - Add contract terms/conditions
-  - Upload contract document
-  - Set renewal options
-  - Confirmation message
-
-#### FR 2.9.3 View Contract Details
-- **Description:** Display contract information and signature status
-- **Acceptance Criteria:**
-  - Show all contract details
-  - Display tenant and room information
-  - Show uploaded contract document (PDF/Image)
-  - Display drawn/typed digital signature from the tenant portal
-  - Display contract terms, payment schedule, and renewal options
-  - Display contract history and signature timestamps
-
-#### FR 2.9.4 Update Contract
-- **Description:** Modify contract details
-- **Acceptance Criteria:**
-  - Extend contract end date
-  - Update rent amount with effective date
-  - Modify terms and conditions
-  - Update contract document
-  - Create amendment record
-  - Notification to tenant
-
-#### FR 2.9.5 Renew Contract
-- **Description:** Renew expired contract
-- **Acceptance Criteria:**
-  - Auto-populate renewal terms
-  - Option to update rent amount
-  - Create new contract record
-  - Archive old contract
-  - Notification to tenant
-  - Confirmation message
-
-#### FR 2.9.6 Terminate Contract
-- **Description:** End tenancy contract
-- **Acceptance Criteria:**
-  - Set termination date
-  - Reason for termination
-  - Calculate final settlement
-  - Generate exit report
-  - Change room status to vacant
-  - Archive contract
-  - Notification to tenant
-
-#### FR 2.9.7 Contract Expiration Alerts
-- **Description:** Alert on upcoming contract expirations
-- **Acceptance Criteria:**
-  - Alert 30 days before expiration
-  - Alert 7 days before expiration
-  - Alert on expiration date
-  - Send reminders to property manager
-  - Send renewal reminders to tenant
-  - Display on dashboard
-
----
-
-### 2.10 FINANCIAL REPORTS
-
-#### FR 2.10.1 Income Report
-- **Description:** Generate monthly income report
-- **Acceptance Criteria:**
-  - Show total expected income
-  - Show actual income collected
-  - Show pending income
-  - Show income by tenant
-  - Show income trends
-  - Compare with previous months
-  - Export to PDF/Excel
-
-#### FR 2.10.2 Expense Report
+#### FR 2.11.2 Expense Report
 - **Description:** Generate expense report
 - **Acceptance Criteria:**
-  - Show expenses by category
-  - Show total monthly expenses
-  - Show expense trends
-  - Compare with budget
-  - Show expenses by room
-  - Year-to-date expenses
-  - Export to PDF/Excel
+  - Expenses by category
+  - Monthly totals and trends
+  - Available via `/api/reports/expenses`
 
-#### FR 2.10.3 Profit & Loss Statement
-- **Description:** Generate profit and loss report
+#### FR 2.11.3 Profit & Loss Statement
+- **Description:** Generate P&L report
 - **Acceptance Criteria:**
-  - Calculate total income
-  - Calculate total expenses
-  - Calculate net profit/loss
-  - Show by month/year
-  - Compare periods
-  - Margin analysis
-  - Export to PDF/Excel
+  - Total income vs total expenses
+  - Net profit/loss calculation
+  - Available via `/api/reports/profit-loss`
 
-#### FR 2.10.4 Occupancy Report
+#### FR 2.11.4 Occupancy Report
 - **Description:** Generate occupancy analytics
 - **Acceptance Criteria:**
-  - Show occupancy rate
-  - Show vacant rooms
-  - Show maintenance rooms
-  - Show occupancy trends
-  - Revenue per occupied room
-  - Forecast future occupancy
-  - Export to PDF/Excel
+  - Occupancy rate percentage
+  - Vacant and maintenance room counts
+  - Available via `/api/reports/occupancy`
 
-#### FR 2.10.5 Tenant Summary Report
+#### FR 2.11.5 Tenant Summary Report
 - **Description:** Generate tenant analytics
 - **Acceptance Criteria:**
-  - Total number of tenants
-  - Tenant by room type
-  - Average tenure
-  - Turnover rate
+  - Total tenants, tenant by room type
   - Outstanding payments by tenant
-  - Contract expiration schedule
-  - Export to PDF/Excel
+  - Available via `/api/reports/tenant-summary`
 
-#### FR 2.10.6 Report Scheduling [Out of Scope / Future Enhancement]
-- **Description:** Schedule automatic report generation
+#### FR 2.11.6 Financial Summary
+- **Description:** Consolidated financial overview
 - **Acceptance Criteria:**
-  - *Note: This feature is out of scope for the current single-tenant deployment. Reports must be generated and downloaded manually from the Reports page.*
+  - Combined income, expense, and profit data
+  - Available via `/api/reports/financial-summary`
+
+#### FR 2.11.7 Report Exports
+- **Description:** Export reports in multiple formats
+- **Acceptance Criteria:**
+  - Export to PDF with professional formatting
+  - Export to Excel with proper column headers
+  - Export to CSV with standard delimiters
 
 ---
 
-### 2.11 SETTINGS & CONFIGURATION
+### 2.12 CALENDAR
 
-#### FR 2.11.1 System Settings
-- **Description:** Configure system-wide settings
+#### FR 2.12.1 Interactive Scheduling Calendar
+- **Description:** Visual calendar for key dates
+- **Acceptance Criteria:**
+  - Display rent due dates
+  - Display utility reading cycles
+  - Display contract expiration milestones
+  - Monthly view navigation
+
+---
+
+### 2.13 COMMUNICATIONS
+
+#### FR 2.13.1 Notification System
+- **Description:** In-app notification management
+- **Acceptance Criteria:**
+  - View all notifications
+  - Create manual notifications
+  - Mark notifications as read/unread
+  - Delete notifications
+  - Notification bell icon with unread count in header
+
+#### FR 2.13.2 SMS Notifications
+- **Description:** Send SMS notifications to tenants
+- **Acceptance Criteria:**
+  - SMS dispatch via configured gateway (Twilio simulated logging)
+  - Available via `POST /api/notifications/send-sms`
+
+---
+
+### 2.14 SETTINGS & CONFIGURATION
+
+#### FR 2.14.1 Property Settings
+- **Description:** Configure property-specific settings
 - **Acceptance Criteria:**
   - Property name and address
   - Contact phone and email
-  - Currency and timezone
-  - Theme selection (light/dark)
-  - Language preferences
-  - Date format preferences
+  - Currency displayed as read-only "USD ($)" (locked, cannot be changed)
+  - Timezone displayed as read-only "Asia/Phnom_Penh (GMT+7)" (locked, cannot be changed)
 
-#### FR 2.11.2 Utility Rate Configuration
-- **Description:** Set utility costs
+#### FR 2.14.2 Theme Configuration
+- **Description:** Visual theme preferences
 - **Acceptance Criteria:**
-  - Configure electricity rate
-  - Configure water rate
-  - Configure other utilities if any
-  - Effective date for changes
-  - Historical tracking
+  - Toggle dark/light mode
+  - Theme preference persisted per user
+  - All pages support both themes
 
-#### FR 2.11.3 Notification Settings
-- **Description:** Configure notification preferences
+#### FR 2.14.3 Profile Settings
+- **Description:** Owner profile management
 - **Acceptance Criteria:**
-  - Email notification settings
-  - SMS notification settings
-  - Notification frequency
-  - Alert types (payment, maintenance, expiration)
-  - Do not disturb settings
-
-#### FR 2.11.4 User Management (Admin)
-- **Description:** Manage system users (admin only)
-- **Acceptance Criteria:**
-  - Create/update/delete users
-  - Assign roles (admin, manager, staff)
-  - Set permissions
-  - View user activity log
-  - Reset user passwords
-  - Deactivate/activate users
-
-#### FR 2.11.5 Backup & Recovery [Out of Scope / Future Enhancement]
-- **Description:** System backup functionality
-- **Acceptance Criteria:**
-  - *Note: Automatic daily backups are handled directly at the database infrastructure level (e.g., Railway database backups) and are out of scope for the application layer.*
+  - View and update name, email
+  - Change password
 
 ---
 
-### 2.12 NOTIFICATIONS
-
-#### FR 2.12.1 Payment Reminders
-- **Description:** Automated and manual payment reminder notifications
-- **Acceptance Criteria:**
-  - SMS notifications queued in the dashboard for manual or automatic dispatch (Twilio simulated logging)
-  - Telegram Channel Broadcasts sent by the administrator for general/payment announcements
-  - In-app notification center alerts visible on the admin dashboard
-
-#### FR 2.12.2 Maintenance Notifications
-- **Description:** Notify on maintenance status changes
-- **Acceptance Criteria:**
-  - Notify on request creation
-  - Notify on status update
-  - Notify on assignment
-  - Notify on completion
-  - Notify tenant of issue resolution
-
-#### FR 2.12.3 Lease Expiration Alerts
-- **Description:** Alert on contract expirations
-- **Acceptance Criteria:**
-  - Alert property manager
-  - Alert tenant
-  - Multiple reminder schedules
-  - Customizable messages
-
-#### FR 2.12.4 System Notifications
-- **Description:** In-app notification system
-- **Acceptance Criteria:**
-  - Real-time notifications
-  - Notification center/bell icon
-  - Mark as read/unread
-  - Notification history
-  - Delete notifications
-  - Search notifications
-
----
-
-### 2.13 REPORTING & EXPORTS
-
-#### FR 2.13.1 PDF Export
-- **Description:** Export reports to PDF
-- **Acceptance Criteria:**
-  - Professional PDF formatting
-  - Include company branding
-  - Multi-page support
-  - Download capability
-  - Email PDF option
-
-#### FR 2.13.2 Excel Export
-- **Description:** Export data to Excel
-- **Acceptance Criteria:**
-  - Format-preserved export
-  - Multiple sheet support
-  - Formulas for calculations
-  - Proper column headers
-  - Download capability
-
-#### FR 2.13.3 CSV Export
-- **Description:** Export data to CSV
-- **Acceptance Criteria:**
-  - Standard CSV format
-  - Proper delimiter handling
-  - Encoding support
-  - Download capability
-
-#### FR 2.13.4 Email Reports [Out of Scope / Future Enhancement]
-- **Description:** Send reports via email
-- **Acceptance Criteria:**
-  - *Note: Custom email report attachments are currently out of scope. Reports can be downloaded directly as PDF/Excel/CSV.*
-
----
-
-### 2.14 SEARCH & FILTER
-
-#### FR 2.14.1 Global Search
-- **Description:** Search across system
-- **Acceptance Criteria:**
-  - Search tenants by name, email, phone
-  - Search rooms by number
-  - Search payments by reference
-  - Search maintenance by title
-  - Real-time search results
-  - Search history
-
-#### FR 2.14.2 Advanced Filters
-- **Description:** Filter data with multiple criteria
-- **Acceptance Criteria:**
-  - Multi-select filters
-  - Date range filters
-  - Status filters
-  - Category filters
-  - Save filter presets
-  - Clear all filters option
-
-#### FR 2.14.3 Sorting
-- **Description:** Sort data by various fields
-- **Acceptance Criteria:**
-  - Ascending/descending sort
-  - Multi-column sort
-  - Sort by date, amount, name, status
-  - Persist sort preference
-  - Default sort options
-
----
-
-### 2.15 PUBLIC TENANT PORTAL INTEGRATIONS
+### 2.15 PUBLIC TENANT PORTAL
 
 #### FR 2.15.1 Public Lease Signing
-- **Description:** Allow tenants to view and sign lease contracts digitally
+- **Description:** Allow tenants to view and digitally sign lease contracts
 - **Acceptance Criteria:**
-  - Secure public page loaded via a unique contract ID (`/tenant-portal/contracts/{id}`)
-  - Display contract terms, rent details, and start/end dates
-  - Allow tenants to draw their signature on a digital canvas or type their name to sign
-  - Submit the signature to the backend (`/tenant-portal/contracts/{id}/sign`) and update the contract status to "signed"
+  - Accessible via `/tenant-portal/contracts/{contractId}` (public, no login required)
+  - Display contract terms, rent details, start/end dates
+  - Digital signature canvas for drawing or typing signature
+  - Submit signature via `POST /api/tenant-portal/contracts/{id}/sign`
+  - Contract status updated to "Signed"
 
-#### FR 2.15.2 Public Invoice Payments
-- **Description:** Allow tenants to view invoice details and upload proof of payment
+#### FR 2.15.2 Public Invoice Payment
+- **Description:** Allow tenants to view invoices and upload proof of payment
 - **Acceptance Criteria:**
-  - Secure public page loaded via a unique payment ID (`/tenant-portal/payments/{id}`)
-  - Display a breakdown of rent charges, utilities, and other items
-  - Display landlord payment information (bank details or QR code for easy transfer)
-  - Allow tenants to upload a payment receipt image/document as proof of transfer (`/tenant-portal/payments/{id}/pay`)
-  - Update payment status to "paid" or "pending verification" in the admin dashboard
+  - Accessible via `/tenant-portal/payments/{paymentId}` (public, no login required)
+  - Display owner's property name, address, phone, email (from settings)
+  - Display room number and room type
+  - Show rent, utility, and fee breakdown
+  - Display landlord KHQR/bank details for transfer
+  - Upload payment receipt as proof of transfer
+  - Payment status updated to "Paid" or "Pending Verification"
 
 #### FR 2.15.3 Public Maintenance Submission
-- **Description:** Allow tenants to submit maintenance tickets without authenticating
+- **Description:** Allow tenants to submit maintenance requests
 - **Acceptance Criteria:**
-  - Accessible public form inside the tenant portal interface
-  - Allow selecting room, entering issue title and detailed description
-  - Submit request directly to the administrator database (`/tenant-portal/maintenance`)
-  - Notify the manager dashboard immediately
+  - Submit room, title, and description via `POST /api/tenant-portal/maintenance`
+  - Request appears immediately in the owner's maintenance dashboard
+
+#### FR 2.15.4 Tenant Portal Login
+- **Description:** Tenants can authenticate to view their dashboard
+- **Acceptance Criteria:**
+  - Login via `POST /api/tenant-portal/login`
+  - View personal dashboard via `/api/tenant-portal/dashboard/{tenantId}`
+  - Send messages to landlord via `POST /api/tenant-portal/messages`
 
 ---
 
 ### 2.16 USER INTERFACE
 
-#### FR 2.16.1 Dashboard Layout
-- **Description:** Responsive dashboard design
+#### FR 2.16.1 Responsive Layout
+- **Description:** Dashboard adapts to all screen sizes
 - **Acceptance Criteria:**
-  - Works on desktop, tablet, mobile
-  - Adaptive layout for different screen sizes
+  - Desktop, tablet, and mobile responsive
+  - Sidebar navigation on desktop
   - Touch-friendly controls
-  - Fast loading times
-  - Accessible design (WCAG compliance)
 
-#### FR 2.16.2 Navigation
-- **Description:** Easy navigation system
+#### FR 2.16.2 Owner Sidebar Navigation
+- **Description:** Navigation menu for owner workspace
 - **Acceptance Criteria:**
-  - Main menu with all modules
-  - Breadcrumb navigation
-  - Quick access shortcuts
-  - Search/command palette
-  - Mobile hamburger menu
+  - Menu items: Dashboard, Rooms, Tenants, Contracts, Payments, Maintenance, Expenses, Utilities, Reports, Calendar, Communications, Settings
+  - Active page highlighting
+  - Logout button
 
-#### FR 2.16.3 Dark Mode
-- **Description:** Dark theme support
+#### FR 2.16.3 Super Admin Sidebar Navigation
+- **Description:** Navigation menu for super admin console
 - **Acceptance Criteria:**
-  - Toggle dark/light mode
-  - Preserve user preference
-  - Easy on eyes color scheme
-  - All pages support dark mode
-  - Reduced brightness for night use
+  - Menu items: Dashboard, Owners, Properties, Invoices, Payments, Analytics, Activity Logs, Settings
+  - Active page highlighting with distinct admin styling
+  - "Super Admin" badge below logo
+  - Logout button
 
-#### FR 2.16.4 Accessibility
-- **Description:** WCAG 2.1 AA compliance
+#### FR 2.16.4 Dark Mode
+- **Description:** Full dark theme support
 - **Acceptance Criteria:**
-  - Keyboard navigation
-  - Screen reader support
-  - Color contrast compliance
-  - Alt text for images
-  - ARIA labels for interactive elements
+  - Toggle between dark and light mode
+  - Preference persisted
+  - All pages and components support dark mode
 
-### 2.17 SUPER ADMIN CONSOLE
-
-#### FR 2.17.1 Platform Telemetry Dashboard
-- **Description:** Real-time console displaying system-wide aggregate stats
+#### FR 2.16.5 Design System
+- **Description:** Custom CSS design system (no Tailwind utility classes in CSS files)
 - **Acceptance Criteria:**
-  - Show platform occupancy, active owners, platform tenants, and global gross revenue
-  - Render room status capacity bars (Occupied vs Vacant vs Offline)
-  - Display recent property registrations and recent landlord accounts joined
-
-#### FR 2.17.2 Owner Account Management (CRUD)
-- **Description:** Super Admin can create, audit, edit, and delete property owner profiles
-- **Acceptance Criteria:**
-  - List owners with pagination, search, and active status filters
-  - Register new landlord account with auto-provisioning of default property settings
-  - Edit owner profile names, emails, and passwords
-  - Permanently purge owner account with cascading delete warnings
-
-#### FR 2.17.3 Landlord Account Activation Toggling
-- **Description:** Instantly suspend or restore landlord access
-- **Acceptance Criteria:**
-  - Toggle is_active flag for any owner
-  - Deactivating an owner instantly revokes all active session tokens
-  - Restrict deactivated landlords from calling any API route
-
-#### FR 2.17.4 Global Property Audit & Purge
-- **Description:** Audit all rooms across landlords with power to prune/delete
-- **Acceptance Criteria:**
-  - List and search all platform rooms filterable by owner and room status
-  - Delete any vacant or maintenance room from the system
-  - Block deletion of occupied rooms with warning validation error
+  - Custom CSS with design tokens for colors, spacing, typography
+  - Brutalist-modern aesthetic with shadow effects
+  - Smooth transitions and micro-animations
+  - Lucide React icons throughout (no emojis)
+  - Consistent border-radius, spacing, and color scheme
 
 ---
 
 ## 3. NON-FUNCTIONAL REQUIREMENTS
 
-
-### 3.1 PERFORMANCE
+### 3.1 Performance
 - Page load time < 2 seconds
 - API response time < 500ms
-- Support 1000+ concurrent users
-- Database query optimization
-- Caching strategy implementation
+- Database query optimization with Eloquent eager loading
+- Vite HMR for instant frontend development feedback
 
-### 3.2 SECURITY
+### 3.2 Security
 - HTTPS/SSL encryption
-- JWT authentication
+- Laravel Sanctum token-based authentication
 - Password hashing (bcrypt)
-- SQL injection prevention
+- SQL injection prevention via Eloquent ORM
 - CSRF token protection
-- Input validation and sanitization
-- Role-based access control (RBAC)
-- Audit logging for all actions
+- Input validation and sanitization on all API endpoints
+- Role-based access control (Super Admin vs Owner)
+- `EnsureOwnerIsActive` middleware blocks suspended accounts
+- `CheckRole` middleware restricts Super Admin routes
+- API rate limiting via Laravel throttle middleware (`api`, `authenticated`, `uploads`)
 
-### 3.3 RELIABILITY
-- 99.9% uptime SLA
-- Database backup every 24 hours
-- Disaster recovery plan
-- Error logging and monitoring
-- Data integrity checks
+### 3.3 Multi-Tenancy & Data Isolation
+- Each owner's data (rooms, tenants, payments, contracts, etc.) scoped by `owner_id`
+- Owners cannot access or modify other owners' data
+- Super Admin has read access to all data for platform oversight
 
-### 3.4 SCALABILITY
-- Horizontal scaling support
-- Database replication
-- Load balancing
-- CDN for static assets
-- Queue system for background jobs
-
-### 3.5 MAINTAINABILITY
-- Clean, documented code
-- Unit test coverage > 80%
-- API documentation
-- System architecture documentation
-- Version control (Git)
-
-### 3.6 COMPATIBILITY
-- Modern browsers (Chrome, Firefox, Safari, Edge)
-- PHP 8.1+
+### 3.4 Compatibility
+- Modern browsers: Chrome, Firefox, Safari, Edge
+- PHP 8.2+
 - MySQL 8.0+
-- Node.js 16+
+- Node.js 18+
 - React 18+
 
 ---
 
-## 4. DATA REQUIREMENTS
+## 4. DATA MODELS
 
-### 4.1 Data Collection
-- Tenant personal information
-- Room specifications
-- Payment records
-- Maintenance logs
-- Utility readings
-- Contract documents
-- Financial transactions
+### 4.1 Core Models
+| Model | Description |
+|-------|-----------|
+| **User** | Super Admin and Owner accounts with role field and `is_active` flag |
+| **Room** | Individual rental units with type, status, capacity, and owner assignment |
+| **RoomType** | Configurable room categories with base price, capacity, and amenities |
+| **Tenant** | Renter profiles with contact info, emergency contact, and risk scoring |
+| **Contract** | Lease agreements with status tracking and digital signature support |
+| **Payment** | Invoice and payment records with method, late fees, and proof uploads |
+| **MaintenanceRequest** | Maintenance tickets with priority, status, assignment, and cost |
+| **Expense** | Business expense records categorized by type |
+| **Utility** | Water and electricity meter readings with auto-cost calculation |
+| **Setting** | Property-level configuration (name, address, contact, rates) |
+| **Notification** | In-app notification records |
+| **ActivityLog** | Platform-wide action audit trail |
 
-### 4.2 Data Storage
-- Encrypted sensitive data
-- Regular backups
-- Archive old records
-- Data retention policy (7 years for financial)
-
-### 4.3 Data Access
-- Role-based access control
-- Audit trail of all access
-- User consent for data processing
-- GDPR/Privacy compliance
-
----
-
-## 5. INTEGRATION REQUIREMENTS
-
-### 5.1 Email Integration
-- SMTP email configuration
-- Email templates
-- Bulk email sending
-- Email delivery tracking
-
-### 5.2 SMS Integration
-- SMS gateway integration (optional)
-- SMS templates
-- Delivery confirmation
-- SMS cost tracking
-
-### 5.3 Payment Gateway (Future)
-- Online payment processing
-- Multiple payment methods
-- Payment reconciliation
-- Transaction logging
-
-### 5.4 File Storage
-- Document storage (contracts, receipts)
-- Photo/image storage
-- File compression
-- Access control
+### 4.2 Data Ownership
+- All core models (Room, Tenant, Payment, Contract, etc.) include an `owner_id` foreign key
+- Queries are automatically scoped to the authenticated owner
+- Super Admin bypasses ownership filters for platform-wide queries
 
 ---
 
-## 6. USER WORKFLOW
+## 5. API ROUTE SUMMARY
 
-### 6.1 Daily Manager Workflow
-1. Login to dashboard
-2. View dashboard overview
-3. Check recent activity
-4. Process received payments
-5. Review pending maintenance
-6. Check overdue payments
-7. Send payment reminders
-8. Update maintenance status
-9. Logout
+### 5.1 Public Routes
+| Method | Endpoint | Description |
+|--------|---------|-----------|
+| POST | `/api/auth/login` | User authentication |
+| POST | `/api/auth/register` | Registration (disabled, returns 403) |
+| GET | `/api/tenant-portal/payments/{id}` | Public invoice view |
+| POST | `/api/tenant-portal/payments/{id}/pay` | Upload proof of payment |
+| GET | `/api/tenant-portal/contracts/{id}` | Public contract view |
+| POST | `/api/tenant-portal/contracts/{id}/sign` | Digital signature submission |
+| POST | `/api/tenant-portal/maintenance` | Public maintenance submission |
+| POST | `/api/tenant-portal/login` | Tenant authentication |
 
-### 6.2 Monthly Admin Workflow
-1. Review all contracts
-2. Check expiring contracts
-3. Generate financial reports
-4. Analyze occupancy rates
-5. Review expenses
-6. Plan maintenance
-7. Approve budget requests
-8. Archive completed records
+### 5.2 Super Admin Routes (requires `role:super_admin`)
+| Method | Endpoint | Description |
+|--------|---------|-----------|
+| GET | `/api/super-admin/dashboard` | Platform dashboard data |
+| GET/POST | `/api/super-admin/owners` | List / Create owners |
+| PUT/DELETE | `/api/super-admin/owners/{id}` | Update / Delete owner |
+| PUT | `/api/super-admin/owners/{id}/toggle-status` | Activate/Deactivate owner |
+| GET | `/api/super-admin/properties` | All platform rooms |
+| DELETE | `/api/super-admin/properties/{id}` | Delete room |
+| GET | `/api/super-admin/statistics` | Platform statistics |
+| GET | `/api/super-admin/invoices` | All platform invoices |
+| GET | `/api/super-admin/activity-logs` | Platform activity logs |
+| GET/PUT | `/api/super-admin/settings` | Platform settings |
 
----
-
-## 7. CONSTRAINTS & ASSUMPTIONS
-
-### 7.1 Constraints
-- Budget limitations
-- Timeline constraints
-- Technology stack limitations
-- Resource availability
-
-### 7.2 Assumptions
-- Users have basic computer literacy
-- Internet connectivity available
-- Browser support for modern standards
-- Data will be entered correctly
-- Regular backups maintained
-- Users will follow security guidelines
-
----
-
-## 8. ACCEPTANCE CRITERIA SUMMARY
-
-### 8.1 Project Success Criteria
-- All functional requirements implemented
-- 99% bug resolution
-- Performance benchmarks met
-- Security audit passed
-- User acceptance testing passed
-- Documentation completed
-- Staff training completed
-
-### 8.2 Quality Metrics
-- Code coverage > 80%
-- Page load time < 2 seconds
-- Uptime > 99.9%
-- User satisfaction > 90%
-- Support ticket resolution < 24 hours
+### 5.3 Owner Routes (requires `auth:sanctum`)
+| Method | Endpoint | Description |
+|--------|---------|-----------|
+| GET | `/api/dashboard/overview` | Owner dashboard stats |
+| GET | `/api/dashboard/alerts` | Dashboard alerts |
+| CRUD | `/api/tenants` | Tenant management |
+| CRUD | `/api/rooms` | Room management |
+| CRUD | `/api/room-types` | Room type management |
+| CRUD | `/api/payments` | Payment/Invoice management |
+| POST | `/api/payments/generate-invoices` | Batch invoice generation |
+| CRUD | `/api/maintenance` | Maintenance management |
+| CRUD | `/api/expenses` | Expense management |
+| GET/POST | `/api/utilities` | Utility readings |
+| GET/PUT | `/api/utilities/rates` | Utility rate config |
+| CRUD | `/api/contracts` | Contract management |
+| GET/PUT | `/api/settings` | Property settings |
+| GET | `/api/reports/*` | Financial reports |
+| GET/POST | `/api/notifications` | Notifications |
 
 ---
 
-## 9. GLOSSARY
+## 6. USER WORKFLOWS
 
-- **Tenant:** Person renting a room in the property
-- **Room:** Individual rental unit
-- **Contract:** Rental agreement between property and tenant
-- **Maintenance Request:** Report of a maintenance issue
-- **Payment:** Money received from tenant
-- **Expense:** Money paid for property operations
-- **Utility Reading:** Electricity/water meter reading
-- **Occupancy Rate:** Percentage of rooms that are occupied
-- **JWT:** JSON Web Token for authentication
-- **RBAC:** Role-Based Access Control
+### 6.1 Super Admin Workflow
+1. Login to Super Admin Console
+2. Review platform dashboard (owners, properties, revenue)
+3. Manage owner accounts (create, activate/deactivate, delete)
+4. Audit properties across all owners
+5. Review system-wide invoices and payments
+6. View analytics and activity logs
+7. Configure platform settings
+8. Logout
+
+### 6.2 Owner Daily Workflow
+1. Login to Owner Dashboard
+2. View dashboard overview and alerts
+3. Check pending payments and send reminders
+4. Review maintenance requests and update status
+5. Record utility readings
+6. Process received payments and attach receipts
+7. Logout
+
+### 6.3 Owner Monthly Workflow
+1. Generate monthly invoices for all tenants
+2. Record utility readings and link to invoices
+3. Review expiring contracts and renew
+4. Generate financial reports (Income, Expense, P&L)
+5. Record business expenses
+6. Export reports to PDF/Excel/CSV
+
+### 6.4 Tenant Portal Workflow
+1. Receive invoice link from landlord
+2. View invoice details and payment QR code
+3. Make bank transfer and upload receipt
+4. Receive contract signing link
+5. View lease terms and sign digitally
+6. Submit maintenance request if needed
 
 ---
 
-## 10. DOCUMENT HISTORY
+## 7. GLOSSARY
+
+| Term | Definition |
+|------|-----------|
+| **Super Admin** | Platform administrator with system-wide access |
+| **Owner** | Property landlord registered by Super Admin |
+| **Tenant** | Person renting a room from an owner |
+| **Room** | Individual rental unit within a property |
+| **Room Type** | Configurable category for rooms (e.g., Studio, Deluxe) |
+| **Contract** | Lease agreement between owner and tenant |
+| **Invoice** | Monthly billing record for a tenant |
+| **Utility Reading** | Recorded electricity/water meter measurement |
+| **Sanctum Token** | Laravel authentication token for API access |
+| **KHQR** | Cambodia QR payment standard |
+| **Occupancy Rate** | Percentage of rooms that are occupied |
+
+---
+
+## 8. DOCUMENT HISTORY
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | May 25, 2026 | Admin | Initial document creation |
-
----
-
-## 11. APPROVAL & SIGN-OFF
-
-| Role | Name | Signature | Date |
-|------|------|-----------|------|
-| Project Manager | __________ | __________ | __________ |
-| Business Analyst | __________ | __________ | __________ |
-| Technical Lead | __________ | __________ | __________ |
-| Client | __________ | __________ | __________ |
+| 2.0 | May 28, 2026 | Admin | Complete rewrite — added Super Admin Console, multi-owner SaaS architecture, locked USD/Phnom Penh settings, removed emojis, updated all features to match actual implementation |
 
 ---
 
