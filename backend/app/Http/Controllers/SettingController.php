@@ -8,12 +8,13 @@ use Illuminate\Http\Request;
 
 class SettingController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $settings = Setting::first();
+        $settings = $this->scopeByOwner(Setting::query(), $request)->first();
         if (!$settings) {
             $settings = Setting::create([
-                'property_name' => 'My Property',
+                'user_id' => $request->user()->id,
+                'property_name' => $request->user()->name . "'s Property",
                 'currency' => 'USD',
                 'timezone' => 'Asia/Phnom_Penh',
                 'theme' => 'light',
@@ -44,23 +45,33 @@ class SettingController extends Controller
             'address'          => 'nullable|string|max:500',
             'phone'            => 'nullable|string|max:50',
             'email'            => 'nullable|email|max:255',
-            'currency'         => 'sometimes|string|max:10',
-            'timezone'         => 'sometimes|string|max:100',
+
+
             'lateFeeAmount'    => 'nullable|numeric|min:0',
             'lateFeeType'      => 'nullable|in:fixed,percentage',
             'gracePeriodDays'  => 'nullable|integer|min:0|max:30',
             'invoiceDueDay'    => 'nullable|integer|min:1|max:28',
         ]);
 
-        $settings = Setting::firstOrCreate([], ['currency' => 'USD', 'timezone' => 'Asia/Phnom_Penh']);
+        $settings = $this->scopeByOwner(Setting::query(), $request)->first();
+
+        if (!$settings) {
+            $settings = Setting::create([
+                'user_id' => $request->user()->id,
+                'property_name' => $request->user()->name . "'s Property",
+                'currency' => 'USD',
+                'timezone' => 'Asia/Phnom_Penh',
+                'theme' => 'light',
+            ]);
+        }
 
         $data = [];
         if (isset($v['propertyName']))   $data['property_name']      = $v['propertyName'];
         if (array_key_exists('address', $v)) $data['address']         = $v['address'];
         if (array_key_exists('phone', $v))   $data['phone']           = $v['phone'];
         if (array_key_exists('email', $v))   $data['email']           = $v['email'];
-        if (isset($v['currency']))        $data['currency']           = $v['currency'];
-        if (isset($v['timezone']))        $data['timezone']           = $v['timezone'];
+        // Currency is hardcoded to USD — not changeable
+        // Timezone is hardcoded to Asia/Phnom_Penh — not changeable
         if (isset($v['lateFeeAmount']))   $data['late_fee_amount']    = $v['lateFeeAmount'];
         if (isset($v['lateFeeType']))     $data['late_fee_type']      = $v['lateFeeType'];
         if (isset($v['gracePeriodDays'])) $data['grace_period_days']  = $v['gracePeriodDays'];

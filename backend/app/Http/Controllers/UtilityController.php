@@ -12,7 +12,7 @@ class UtilityController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Utility::with('room');
+        $query = $this->scopeByOwner(Utility::with('room'), $request);
 
         if ($month = $request->query('month')) $query->where('month', $month);
         if ($search = $request->query('search')) {
@@ -31,7 +31,7 @@ class UtilityController extends Controller
             'electricityCost' => $u->electricity_cost,
             'waterCost' => $u->water_cost,
             'total' => round($u->electricity_cost + $u->water_cost, 2),
-            'addedToInvoice' => $this->isAddedToInvoice($u),
+            'addedToInvoice' => $this->isAddedToInvoice($request, $u),
         ]);
 
         return $this->paginated($utilities);
@@ -46,11 +46,11 @@ class UtilityController extends Controller
             'month' => 'required|string',
         ]);
 
-        $room = \App\Models\Room::where('room_number', $v['room'])->first();
+        $room = $this->scopeByOwner(\App\Models\Room::query(), $request)->where('room_number', $v['room'])->first();
         if (!$room) return $this->error('Room not found', 'not_found', null, 404);
 
         // Get previous reading
-        $prev = Utility::where('room_id', $room->id)
+        $prev = $this->scopeByOwner(Utility::query(), $request)->where('room_id', $room->id)
             ->where('month', '<', $v['month'])
             ->orderBy('month', 'desc')
             ->first();
@@ -60,7 +60,7 @@ class UtilityController extends Controller
         $wUsage = $prev ? ($v['water'] - $prev->water) : $v['water'];
 
         // Get rates from settings
-        $settings = Setting::first();
+        $settings = $this->scopeByOwner(Setting::query(), $request)->first();
         $eRate = $settings->electricity_rate ?? 0.20;
         $wRate = $settings->water_rate ?? 0.50;
 
@@ -68,6 +68,7 @@ class UtilityController extends Controller
         $wCost = round($wUsage * $wRate, 2);
 
         $utility = Utility::create([
+            'user_id' => $request->user()->id,
             'room_id' => $room->id,
             'electricity' => $v['electricity'],
             'water' => $v['water'],
@@ -79,7 +80,7 @@ class UtilityController extends Controller
         // AUTO-LINK: Update existing payment for this room+month with utility charges
         $tenant = $room->tenant;
         if ($tenant) {
-            $payment = Payment::where('tenant_id', $tenant->id)
+            $payment = $this->scopeByOwner(Payment::query(), $request)->where('tenant_id', $tenant->id)
                 ->where('month', $v['month'])
                 ->first();
 
@@ -95,9 +96,9 @@ class UtilityController extends Controller
         return $this->success($utility->load('room'), 'Utility reading recorded and cost calculated', 201);
     }
 
-    public function rates(): JsonResponse
+    public function rates(Request $request): JsonResponse
     {
-        $settings = Setting::first();
+        $settings = $this->scopeByOwner(Setting::query(), $request)->first();
         return $this->success([
             'electricityRate' => $settings->electricity_rate ?? 0.20,
             'waterRate' => $settings->water_rate ?? 0.50,
@@ -111,11 +112,16 @@ class UtilityController extends Controller
             'waterRate' => 'required|numeric|min:0',
         ]);
 
-        $settings = Setting::firstOrCreate([], [
-            'property_name' => 'Admin Dashboard',
-            'currency' => 'USD',
-            'timezone' => 'Asia/Phnom_Penh',
-        ]);
+        $settings = $this->scopeByOwner(Setting::query(), $request)->first();
+
+        if (!$settings) {
+            $settings = Setting::create([
+                'user_id' => $request->user()->id,
+                'property_name' => $request->user()->name . "'s Property",
+                'currency' => 'USD',
+                'timezone' => 'Asia/Phnom_Penh',
+            ]);
+        }
 
         $settings->update([
             'electricity_rate' => $v['electricityRate'],
@@ -128,9 +134,9 @@ class UtilityController extends Controller
         ], 'Rates updated successfully');
     }
 
-    public function monthly(string $month): JsonResponse
+    public function monthly(Request $request, string $month): JsonResponse
     {
-        $utilities = Utility::with('room')->where('month', $month)->get();
+        $utilities = $this->scopeByOwner(Utility::with('room'), $request)->where('month', $month)->get();
 
         $totalElectricity = $utilities->sum('electricity');
         $totalWater = $utilities->sum('water');
@@ -157,12 +163,12 @@ class UtilityController extends Controller
     /**
      * Check if utility charges were already added to a payment
      */
-    private function isAddedToInvoice(Utility $utility): bool
+    private function isAddedToInvoice(Request $request, Utility $utility): bool
     {
         $room = $utility->room;
         if (!$room || !$room->tenant) return false;
 
-        return Payment::where('tenant_id', $room->tenant->id)
+        return $this->scopeByOwner(Payment::query(), $request)->where('tenant_id', $room->tenant->id)
             ->where('month', $utility->month)
             ->where('utility_amount', '>', 0)
             ->exists();
@@ -171,9 +177,9 @@ class UtilityController extends Controller
     /**
      * POST /api/utilities/{id}/link
      */
-    public function linkToInvoice(string $id): JsonResponse
+    public function linkToInvoice(Request $request, string $id): JsonResponse
     {
-        $utility = Utility::with('room.tenant')->find($id);
+        $utility = $this->scopeByOwner(Utility::with('room.tenant'), $request)->find($id);
         if (!$utility) {
             return $this->error('Utility record not found', 'not_found', null, 404);
         }
@@ -189,7 +195,7 @@ class UtilityController extends Controller
         }
 
         // Find or create an invoice for this tenant for the utility's month
-        $payment = Payment::where('tenant_id', $tenant->id)
+        $payment = $this->scopeByOwner(Payment::query(), $request)->where('tenant_id', $tenant->id)
             ->where('month', $utility->month)
             ->first();
 
@@ -210,6 +216,7 @@ class UtilityController extends Controller
             // Generate a due date (e.g., 1st of the month or today)
             $dueDate = now()->toDateString();
             $payment = Payment::create([
+                'user_id' => $request->user()->id,
                 'tenant_id' => $tenant->id,
                 'room_id' => $room->id,
                 'amount' => $room->rent,

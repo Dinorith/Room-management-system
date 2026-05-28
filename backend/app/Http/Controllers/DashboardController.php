@@ -17,21 +17,24 @@ class DashboardController extends Controller
     /**
      * GET /api/dashboard/overview
      */
-    public function overview(): JsonResponse
+    public function overview(Request $request): JsonResponse
     {
-        $totalTenants = Tenant::where('status', 'active')->count();
-        $occupiedRooms = Room::where('status', 'occupied')->count();
-        $vacantRooms = Room::where('status', 'vacant')->count();
+        $ownerId = $this->getOwnerId($request);
+        $scopeUser = fn($q) => $ownerId ? $q->where('user_id', $ownerId) : $q;
+
+        $totalTenants = $scopeUser(Tenant::query())->where('status', 'active')->count();
+        $occupiedRooms = $scopeUser(Room::query())->where('status', 'occupied')->count();
+        $vacantRooms = $scopeUser(Room::query())->where('status', 'vacant')->count();
 
         $currentMonth = now()->format('F Y');
-        $totalRevenue = Payment::where('status', 'paid')
+        $totalRevenue = $scopeUser(Payment::query())->where('status', 'paid')
             ->whereMonth('paid_date', now()->month)
             ->whereYear('paid_date', now()->year)
             ->sum('amount');
 
         // Dynamic overdue: pending + past due date
-        $pendingPayments = Payment::where('status', 'pending')->count();
-        $overduePayments = Payment::where(function ($q) {
+        $pendingPayments = $scopeUser(Payment::query())->where('status', 'pending')->count();
+        $overduePayments = $scopeUser(Payment::query())->where(function ($q) {
             $q->where('status', 'overdue')
               ->orWhere(function ($q2) {
                   $q2->where('status', 'pending')
@@ -39,21 +42,21 @@ class DashboardController extends Controller
               });
         })->count();
 
-        $maintenanceRequests = MaintenanceRequest::whereIn('status', ['pending', 'in-progress'])->count();
+        $maintenanceRequests = $scopeUser(MaintenanceRequest::query())->whereIn('status', ['pending', 'in-progress'])->count();
 
-        $totalExpenses = Expense::whereMonth('date', now()->month)
+        $totalExpenses = $scopeUser(Expense::query())->whereMonth('date', now()->month)
             ->whereYear('date', now()->year)
             ->sum('amount');
 
         $netProfit = $totalRevenue - $totalExpenses;
 
         // Trend: compare with previous month
-        $prevRevenue = Payment::where('status', 'paid')
+        $prevRevenue = $scopeUser(Payment::query())->where('status', 'paid')
             ->whereMonth('paid_date', now()->subMonth()->month)
             ->whereYear('paid_date', now()->subMonth()->year)
             ->sum('amount');
 
-        $prevExpenses = Expense::whereMonth('date', now()->subMonth()->month)
+        $prevExpenses = $scopeUser(Expense::query())->whereMonth('date', now()->subMonth()->month)
             ->whereYear('date', now()->subMonth()->year)
             ->sum('amount');
 
@@ -66,13 +69,13 @@ class DashboardController extends Controller
             : 0;
 
         // Occupancy rate
-        $totalRooms = Room::count();
+        $totalRooms = $scopeUser(Room::query())->count();
         $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100, 1) : 0;
 
         // Collection rate this month
-        $thisMonthTotal = Payment::whereMonth('due_date', now()->month)
+        $thisMonthTotal = $scopeUser(Payment::query())->whereMonth('due_date', now()->month)
             ->whereYear('due_date', now()->year)->sum('amount');
-        $thisMonthPaid = Payment::where('status', 'paid')
+        $thisMonthPaid = $scopeUser(Payment::query())->where('status', 'paid')
             ->whereMonth('due_date', now()->month)
             ->whereYear('due_date', now()->year)->sum('amount');
         $collectionRate = $thisMonthTotal > 0 ? round(($thisMonthPaid / $thisMonthTotal) * 100) : 0;
@@ -100,12 +103,14 @@ class DashboardController extends Controller
      * GET /api/dashboard/alerts
      * Consolidated alerts: overdue payments, expiring contracts, urgent maintenance
      */
-    public function alerts(): JsonResponse
+    public function alerts(Request $request): JsonResponse
     {
+        $ownerId = $this->getOwnerId($request);
+        $scopeUser = fn($q) => $ownerId ? $q->where('user_id', $ownerId) : $q;
         $alerts = [];
 
         // Overdue payments
-        $overduePayments = Payment::with(['tenant', 'room'])
+        $overduePayments = $scopeUser(Payment::with(['tenant', 'room']))
             ->where(function ($q) {
                 $q->where('status', 'overdue')
                   ->orWhere(function ($q2) {
@@ -133,7 +138,7 @@ class DashboardController extends Controller
         }
 
         // Expiring contracts (next 30 days)
-        $expiringContracts = Contract::with(['tenant', 'room'])
+        $expiringContracts = $scopeUser(Contract::with(['tenant', 'room']))
             ->where('status', 'active')
             ->whereBetween('end_date', [now(), now()->addDays(30)])
             ->orderBy('end_date', 'asc')
@@ -157,7 +162,7 @@ class DashboardController extends Controller
         }
 
         // Urgent maintenance
-        $urgentMaintenance = MaintenanceRequest::with('room')
+        $urgentMaintenance = $scopeUser(MaintenanceRequest::with('room'))
             ->where('priority', 'urgent')
             ->whereIn('status', ['pending', 'in-progress'])
             ->limit(5)
@@ -185,12 +190,14 @@ class DashboardController extends Controller
     /**
      * GET /api/dashboard/recent-activity
      */
-    public function recentActivity(): JsonResponse
+    public function recentActivity(Request $request): JsonResponse
     {
+        $ownerId = $this->getOwnerId($request);
+        $scopeUser = fn($q) => $ownerId ? $q->where('user_id', $ownerId) : $q;
         $activities = collect();
 
         // Recent payments
-        $payments = Payment::with(['tenant', 'room'])
+        $payments = $scopeUser(Payment::with(['tenant', 'room']))
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
@@ -206,7 +213,7 @@ class DashboardController extends Controller
             });
 
         // Recent maintenance requests
-        $maintenance = MaintenanceRequest::with('room')
+        $maintenance = $scopeUser(MaintenanceRequest::with('room'))
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()
@@ -222,7 +229,7 @@ class DashboardController extends Controller
             });
 
         // Recent tenants
-        $tenants = Tenant::with('room')
+        $tenants = $scopeUser(Tenant::with('room'))
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get()

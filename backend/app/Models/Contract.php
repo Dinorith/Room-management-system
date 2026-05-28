@@ -11,8 +11,13 @@ class Contract extends Model
 
     protected $fillable = [
         'tenant_id', 'room_id', 'start_date', 'end_date', 
-        'rent_amount', 'status', 'terms'
+        'rent_amount', 'status', 'terms', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'start_date' => 'date',

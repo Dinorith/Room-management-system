@@ -18,15 +18,36 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Create admin user
-        $admin = User::create([
+        // Create Super Admin
+        $superAdmin = User::create([
+            'name' => 'Super Admin',
+            'email' => 'superadmin@rentflow.com',
+            'password' => Hash::make('password'),
+            'role' => 'super_admin',
+            'is_active' => true,
+        ]);
+
+        // Keep admin@admin.com as another Super Admin for easy login/compatibility
+        User::create([
             'name' => 'Admin',
             'email' => 'admin@admin.com',
             'password' => Hash::make('password'),
+            'role' => 'super_admin',
+            'is_active' => true,
         ]);
 
-        // Create settings
+        // Create sample Owner
+        $owner = User::create([
+            'name' => 'Sample Owner',
+            'email' => 'owner@rentflow.com',
+            'password' => Hash::make('password'),
+            'role' => 'owner',
+            'is_active' => true,
+        ]);
+
+        // Create settings for Owner
         Setting::create([
+            'user_id' => $owner->id,
             'property_name' => 'Sunrise Apartments',
             'address' => '123 Monivong Blvd, Phnom Penh',
             'phone' => '+855 23 456 789',
@@ -61,9 +82,13 @@ class DatabaseSeeder extends Seeder
 
         foreach ($roomData as $r) {
             $rooms[$r[0]] = Room::create([
-                'room_number' => $r[0], 'type' => $r[1],
-                'rent' => $r[2], 'capacity' => $r[3],
-                'status' => 'vacant', 'amenities' => $r[4],
+                'user_id' => $owner->id,
+                'room_number' => $r[0],
+                'type' => $r[1],
+                'rent' => $r[2],
+                'capacity' => $r[3],
+                'status' => 'vacant',
+                'amenities' => $r[4],
             ]);
         }
 
@@ -83,9 +108,13 @@ class DatabaseSeeder extends Seeder
         foreach ($tenantData as $t) {
             $room = $rooms[$t[1]];
             $tenant = Tenant::create([
-                'name' => $t[0], 'room_id' => $room->id,
-                'phone' => $t[2], 'email' => $t[3],
-                'move_in_date' => $t[4], 'id_number' => $t[5],
+                'user_id' => $owner->id,
+                'name' => $t[0],
+                'room_id' => $room->id,
+                'phone' => $t[2],
+                'email' => $t[3],
+                'move_in_date' => $t[4],
+                'id_number' => $t[5],
                 'emergency_contact' => '+855 10 000 000',
                 'status' => 'active',
             ]);
@@ -99,6 +128,7 @@ class DatabaseSeeder extends Seeder
         // Create contracts
         foreach ($tenants as $tenant) {
             Contract::create([
+                'user_id' => $owner->id,
                 'tenant_id' => $tenant->id,
                 'room_id' => $tenant->room_id,
                 'start_date' => $tenant->move_in_date,
@@ -120,8 +150,11 @@ class DatabaseSeeder extends Seeder
             foreach ($months as $m) {
                 $isPaid = $m[2] !== null;
                 Payment::create([
-                    'tenant_id' => $tenant->id, 'room_id' => $room->id,
-                    'amount' => $room->rent, 'due_date' => $m[1],
+                    'user_id' => $owner->id,
+                    'tenant_id' => $tenant->id,
+                    'room_id' => $room->id,
+                    'amount' => $room->rent,
+                    'due_date' => $m[1],
                     'paid_date' => $isPaid ? $m[2] : null,
                     'status' => $isPaid ? 'paid' : (now()->gt(\Carbon\Carbon::parse($m[1])) ? 'overdue' : 'pending'),
                     'payment_method' => $isPaid ? 'credit_card' : null,
@@ -137,24 +170,37 @@ class DatabaseSeeder extends Seeder
 
         // Create maintenance requests
         MaintenanceRequest::create([
-            'room_id' => $rooms['302']->id, 'title' => 'Water heater not working',
+            'user_id' => $owner->id,
+            'room_id' => $rooms['302']->id,
+            'title' => 'Water heater not working',
             'description' => 'Hot water stopped working yesterday',
-            'priority' => 'urgent', 'status' => 'pending',
-            'reported_by' => 'Piseth Tep', 'reported_date' => '2026-04-19',
+            'priority' => 'urgent',
+            'status' => 'pending',
+            'reported_by' => 'Piseth Tep',
+            'reported_date' => '2026-04-19',
         ]);
         MaintenanceRequest::create([
-            'room_id' => $rooms['201']->id, 'title' => 'AC making noise',
+            'user_id' => $owner->id,
+            'room_id' => $rooms['201']->id,
+            'title' => 'AC making noise',
             'description' => 'Air conditioner making loud rattling noise',
-            'priority' => 'medium', 'status' => 'in-progress',
-            'reported_by' => 'Vicheka Ros', 'reported_date' => '2026-04-17',
+            'priority' => 'medium',
+            'status' => 'in-progress',
+            'reported_by' => 'Vicheka Ros',
+            'reported_date' => '2026-04-17',
             'notes' => 'Technician scheduled for April 25',
         ]);
         MaintenanceRequest::create([
-            'room_id' => $rooms['103']->id, 'title' => 'Leaking faucet',
+            'user_id' => $owner->id,
+            'room_id' => $rooms['103']->id,
+            'title' => 'Leaking faucet',
             'description' => 'Bathroom faucet dripping constantly',
-            'priority' => 'low', 'status' => 'completed',
-            'reported_by' => 'Guest', 'reported_date' => '2026-04-10',
-            'completed_date' => '2026-04-12', 'notes' => 'Replaced washer',
+            'priority' => 'low',
+            'status' => 'completed',
+            'reported_by' => 'Guest',
+            'reported_date' => '2026-04-10',
+            'completed_date' => '2026-04-12',
+            'notes' => 'Replaced washer',
         ]);
 
         // Create expenses
@@ -168,7 +214,13 @@ class DatabaseSeeder extends Seeder
             ['taxes', 'Property tax Q1 2026', 1200, '2026-03-15'],
         ];
         foreach ($expenseData as $e) {
-            Expense::create(['category' => $e[0], 'description' => $e[1], 'amount' => $e[2], 'date' => $e[3]]);
+            Expense::create([
+                'user_id' => $owner->id,
+                'category' => $e[0],
+                'description' => $e[1],
+                'amount' => $e[2],
+                'date' => $e[3]
+            ]);
         }
 
         // Create utility readings
@@ -182,6 +234,7 @@ class DatabaseSeeder extends Seeder
 
             $room = $rooms[$rn];
             Utility::create([
+                'user_id' => $owner->id,
                 'room_id' => $room->id,
                 'electricity' => $eUsage,
                 'water' => $wUsage,

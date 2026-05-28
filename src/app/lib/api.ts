@@ -1,6 +1,6 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 
+const API_BASE_URL = import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? '/api' 
+    ? '/api'
     : 'https://room-rent-backend-production.up.railway.app/api');
 
 class ApiClient {
@@ -204,6 +204,12 @@ class ApiClient {
     return this.request<any>(`/payments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
+    });
+  }
+
+  async deletePayment(id: string) {
+    return this.request<any>(`/payments/${id}`, {
+      method: 'DELETE',
     });
   }
 
@@ -479,6 +485,78 @@ class ApiClient {
 
   async delete<T = any>(endpoint: string) {
     return this.request<T>(endpoint, { method: 'DELETE' });
+  }
+
+  // Super Admin Methods
+  async getSuperAdminDashboard() {
+    return this.request<any>('/super-admin/dashboard');
+  }
+
+  async getOwners(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/super-admin/owners${query}`);
+  }
+
+  async createOwner(data: any) {
+    return this.request<any>('/super-admin/owners', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateOwner(id: string, data: any) {
+    return this.request<any>(`/super-admin/owners/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteOwner(id: string) {
+    return this.request<any>(`/super-admin/owners/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleOwnerStatus(id: string) {
+    return this.request<any>(`/super-admin/owners/${id}/toggle-status`, {
+      method: 'PUT',
+    });
+  }
+
+  async getSuperAdminProperties(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/super-admin/properties${query}`);
+  }
+
+  async deleteSuperAdminProperty(id: string) {
+    return this.request<any>(`/super-admin/properties/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getSuperAdminStatistics() {
+    return this.request<any>('/super-admin/statistics');
+  }
+
+  async getSuperAdminInvoices(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/super-admin/invoices${query}`);
+  }
+
+  async getSuperAdminActivityLogs(params?: Record<string, string>) {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return this.request<any>(`/super-admin/activity-logs${query}`);
+  }
+
+  async getSuperAdminSettings() {
+    return this.request<any>('/super-admin/settings');
+  }
+
+  async updateSuperAdminSettings(data: any) {
+    return this.request<any>('/super-admin/settings', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
   }
 
 }

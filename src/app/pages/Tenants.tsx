@@ -35,7 +35,7 @@ export function Tenants() {
       const res = await api.getRooms({ limit: "100" });
       const rooms = res.data || [];
       setAllRooms(rooms);
-      setVacantRooms(rooms.filter((r: any) => r.status === "vacant"));
+      setVacantRooms(rooms.filter((r: any) => r.status === "vacant" && !r.tenant));
     } catch (err) { console.error(err); }
     finally { setLoadingRooms(false); }
   };
@@ -114,7 +114,7 @@ export function Tenants() {
     if (!editTenant) return [];
     const currentRoom = editTenant.room;
     const options = allRooms.filter(
-      (r: any) => r.status === "vacant" || r.roomNumber === currentRoom
+      (r: any) => (r.status === "vacant" && !r.tenant) || r.roomNumber === currentRoom
     );
     return options;
   };

@@ -14,8 +14,13 @@ class Setting extends Model
         'currency', 'timezone', 'theme',
         'electricity_rate', 'water_rate',
         'late_fee_amount', 'late_fee_type', 'grace_period_days', 'invoice_due_day',
-        'room_types',
+        'room_types', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'electricity_rate' => 'decimal:2',

@@ -48,4 +48,41 @@ abstract class Controller
             ],
         ]);
     }
+
+    /**
+     * Get the owner user_id for scoping queries.
+     * Returns the authenticated user's id for owners, null for super admins.
+     */
+    protected function getOwnerId($request): ?int
+    {
+        $user = $request->user();
+        return $user && $user->isOwner() ? $user->id : null;
+    }
+
+    /**
+     * Apply owner scope to an Eloquent query builder.
+     * For owners: scopes to their user_id. For super admins: no scope (sees all).
+     */
+    protected function scopeByOwner($query, $request)
+    {
+        $ownerId = $this->getOwnerId($request);
+        if ($ownerId !== null) {
+            $query->where('user_id', $ownerId);
+        }
+        return $query;
+    }
+
+    /**
+     * Log system activity.
+     */
+    protected function logActivity($request, string $action, string $description, ?array $details = null): void
+    {
+        \App\Models\ActivityLog::create([
+            'user_id' => $request->user()?->id,
+            'action' => $action,
+            'description' => $description,
+            'details' => $details,
+            'ip_address' => $request->ip(),
+        ]);
+    }
 }

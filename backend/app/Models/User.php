@@ -23,6 +23,8 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
+        'is_active',
     ];
 
     /**
@@ -45,6 +47,78 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'is_active' => 'boolean',
         ];
+    }
+
+    // ── Role Helpers ──────────────────────────────────────────
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isOwner(): bool
+    {
+        return $this->role === 'owner';
+    }
+
+    // ── Query Scopes ──────────────────────────────────────────
+
+    public function scopeOwners($query)
+    {
+        return $query->where('role', 'owner');
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    // ── Relationships ──────────────────────────────────────────
+
+    public function rooms()
+    {
+        return $this->hasMany(Room::class);
+    }
+
+    public function tenants()
+    {
+        return $this->hasMany(Tenant::class);
+    }
+
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function contracts()
+    {
+        return $this->hasMany(Contract::class);
+    }
+
+    public function expenses()
+    {
+        return $this->hasMany(Expense::class);
+    }
+
+    public function utilities()
+    {
+        return $this->hasMany(Utility::class);
+    }
+
+    public function maintenanceRequests()
+    {
+        return $this->hasMany(MaintenanceRequest::class);
+    }
+
+    public function settings()
+    {
+        return $this->hasOne(Setting::class);
+    }
+
+    public function roomTypes()
+    {
+        return $this->hasMany(RoomType::class);
     }
 }

@@ -11,7 +11,7 @@ class ContractController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Contract::with(['tenant', 'room']);
+        $query = $this->scopeByOwner(Contract::with(['tenant', 'room']), $request);
 
         if ($status = $request->query('status')) $query->where('status', $status);
         if ($search = $request->query('search')) {
@@ -34,9 +34,9 @@ class ContractController extends Controller
         return $this->paginated($contracts);
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $c = Contract::with(['tenant', 'room'])->find($id);
+        $c = $this->scopeByOwner(Contract::with(['tenant', 'room']), $request)->find($id);
         if (!$c) return $this->error('Contract not found', 'not_found', null, 404);
 
         return $this->success([
@@ -67,6 +67,7 @@ class ContractController extends Controller
             'start_date' => $v['startDate'], 'end_date' => $v['endDate'],
             'rent_amount' => $v['rentAmount'], 'status' => $v['status'] ?? 'draft',
             'terms' => $v['terms'] ?? null,
+            'user_id' => $request->user()->id,
         ]);
 
         return $this->success($contract->load(['tenant', 'room']), 'Contract created', 201);
@@ -74,7 +75,7 @@ class ContractController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $c = Contract::find($id);
+        $c = $this->scopeByOwner(Contract::query(), $request)->find($id);
         if (!$c) return $this->error('Contract not found', 'not_found', null, 404);
 
         $v = $request->validate([
@@ -96,9 +97,9 @@ class ContractController extends Controller
         return $this->success($c->fresh()->load(['tenant', 'room']), 'Contract updated');
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $c = Contract::find($id);
+        $c = $this->scopeByOwner(Contract::query(), $request)->find($id);
         if (!$c) return $this->error('Contract not found', 'not_found', null, 404);
 
         $c->delete();
@@ -109,9 +110,9 @@ class ContractController extends Controller
      * GET /api/contracts/expiring-soon
      * Returns contracts expiring within the next 30 days
      */
-    public function expiringSoon(): JsonResponse
+    public function expiringSoon(Request $request): JsonResponse
     {
-        $contracts = Contract::with(['tenant', 'room'])
+        $contracts = $this->scopeByOwner(Contract::with(['tenant', 'room']), $request)
             ->where('status', 'active')
             ->whereBetween('end_date', [now(), now()->addDays(30)])
             ->orderBy('end_date', 'asc')
@@ -173,6 +174,7 @@ class ContractController extends Controller
             'rent_amount' => $newRent,
             'status' => 'active',
             'terms' => $v['terms'] ?? $oldContract->terms,
+            'user_id' => $oldContract->user_id,
         ]);
 
         return $this->success([

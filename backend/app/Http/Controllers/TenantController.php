@@ -15,7 +15,7 @@ class TenantController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Tenant::with('room');
+        $query = $this->scopeByOwner(Tenant::with('room'), $request);
 
         // Search
         if ($search = $request->query('search')) {
@@ -60,9 +60,9 @@ class TenantController extends Controller
     /**
      * GET /api/tenants/:id
      */
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $tenant = Tenant::with(['room', 'payments', 'contracts'])->find($id);
+        $tenant = $this->scopeByOwner(Tenant::with(['room', 'payments', 'contracts']), $request)->find($id);
 
         if (!$tenant) {
             return $this->error('Tenant not found', 'not_found', null, 404);
@@ -110,11 +110,15 @@ class TenantController extends Controller
         $roomId = null;
         $room = null;
         if (!empty($validated['room'])) {
-            $room = \App\Models\Room::where('room_number', $validated['room'])->first();
-            if ($room) {
-                $roomId = $room->id;
-                $room->update(['status' => 'occupied', 'tenant_id' => null]); // Will update tenant_id after creation
+            $room = $this->scopeByOwner(\App\Models\Room::query(), $request)->where('room_number', $validated['room'])->first();
+            if (!$room) {
+                return $this->error('Room not found', 'not_found', null, 404);
             }
+            if ($room->status === 'occupied' || !empty($room->tenant_id)) {
+                return $this->error("Room {$room->room_number} is already occupied by another active tenant.", 'room_occupied', null, 422);
+            }
+            $roomId = $room->id;
+            $room->update(['status' => 'occupied', 'tenant_id' => null]); // Will update tenant_id after creation
         }
 
         $tenant = Tenant::create([
@@ -126,6 +130,7 @@ class TenantController extends Controller
             'id_number' => $validated['idNumber'] ?? null,
             'emergency_contact' => $validated['emergencyContact'] ?? null,
             'status' => 'active',
+            'user_id' => $request->user()->id,
         ]);
 
         // Update room's tenant_id
@@ -146,6 +151,7 @@ class TenantController extends Controller
                 'rent_amount' => $room->rent ?? 0,
                 'status' => 'draft',
                 'terms' => 'Auto-generated draft contract. Please review and activate.',
+                'user_id' => $request->user()->id,
             ]);
         }
 
@@ -157,7 +163,7 @@ class TenantController extends Controller
      */
     public function update(UpdateTenantRequest $request, string $id): JsonResponse
     {
-        $tenant = Tenant::find($id);
+        $tenant = $this->scopeByOwner(Tenant::query(), $request)->find($id);
 
         if (!$tenant) {
             return $this->error('Tenant not found', 'not_found', null, 404);
@@ -173,22 +179,40 @@ class TenantController extends Controller
         if (array_key_exists('moveOutDate', $validated)) $updateData['move_out_date'] = $validated['moveOutDate'];
         if (isset($validated['idNumber'])) $updateData['id_number'] = $validated['idNumber'];
         if (isset($validated['emergencyContact'])) $updateData['emergency_contact'] = $validated['emergencyContact'];
-        if (isset($validated['status'])) $updateData['status'] = $validated['status'];
+        if (isset($validated['status'])) {
+            $updateData['status'] = $validated['status'];
+            if ($validated['status'] === 'inactive' && $tenant->room_id) {
+                \App\Models\Room::where('id', $tenant->room_id)->update(['status' => 'vacant', 'tenant_id' => null]);
+                $updateData['room_id'] = null;
+                $tenant->room_id = null; // Update the model instance to reflect this immediately
+            }
+        }
 
         // Handle room change
-        if (array_key_exists('room', $validated)) {
-            // Free old room
-            if ($tenant->room_id) {
-                \App\Models\Room::where('id', $tenant->room_id)->update(['status' => 'vacant', 'tenant_id' => null]);
-            }
-
+        if (array_key_exists('room', $validated) && $tenant->status === 'active') {
             if (!empty($validated['room'])) {
-                $room = \App\Models\Room::where('room_number', $validated['room'])->first();
-                if ($room) {
-                    $updateData['room_id'] = $room->id;
-                    $room->update(['status' => 'occupied', 'tenant_id' => $tenant->id]);
+                $room = $this->scopeByOwner(\App\Models\Room::query(), $request)->where('room_number', $validated['room'])->first();
+                if (!$room) {
+                    return $this->error('Room not found', 'not_found', null, 404);
                 }
+
+                // Block if assigning to a different occupied room
+                if ($room->id !== $tenant->room_id && ($room->status === 'occupied' || !empty($room->tenant_id))) {
+                    return $this->error("Room {$room->room_number} is already occupied by another active tenant.", 'room_occupied', null, 422);
+                }
+
+                // Free old room
+                if ($tenant->room_id && $tenant->room_id !== $room->id) {
+                    \App\Models\Room::where('id', $tenant->room_id)->update(['status' => 'vacant', 'tenant_id' => null]);
+                }
+
+                $updateData['room_id'] = $room->id;
+                $room->update(['status' => 'occupied', 'tenant_id' => $tenant->id]);
             } else {
+                // Free old room if unassigning
+                if ($tenant->room_id) {
+                    \App\Models\Room::where('id', $tenant->room_id)->update(['status' => 'vacant', 'tenant_id' => null]);
+                }
                 $updateData['room_id'] = null;
             }
         }
@@ -201,9 +225,9 @@ class TenantController extends Controller
     /**
      * DELETE /api/tenants/:id
      */
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $tenant = Tenant::find($id);
+        $tenant = $this->scopeByOwner(Tenant::query(), $request)->find($id);
 
         if (!$tenant) {
             return $this->error('Tenant not found', 'not_found', null, 404);

@@ -26,6 +26,18 @@ class AuthController extends Controller
         }
 
         $user = Auth::user();
+
+        // Check if owner account is active
+        if ($user->isOwner() && !$user->is_active) {
+            Auth::logout();
+            return $this->error(
+                'Your account has been deactivated. Please contact the administrator.',
+                'account_deactivated',
+                null,
+                403
+            );
+        }
+
         $token = $user->createToken('auth-token')->plainTextToken;
 
         return $this->success([
@@ -33,6 +45,7 @@ class AuthController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'role' => $user->role,
             ],
             'token' => $token,
         ], 'Login successful');
@@ -50,31 +63,16 @@ class AuthController extends Controller
 
     /**
      * POST /api/auth/register
+     * Registration is disabled — only Super Admin can create owner accounts.
      */
     public function register(Request $request): JsonResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'password' => ['required', 'confirmed', Password::min(8)],
-        ]);
-
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-
-        $token = $user->createToken('auth-token')->plainTextToken;
-
-        return $this->success([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-            ],
-            'token' => $token,
-        ], 'Registration successful', 201);
+        return $this->error(
+            'Registration is disabled. Please contact the administrator.',
+            'registration_disabled',
+            null,
+            403
+        );
     }
 
     /**
@@ -88,6 +86,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'role' => $user->role,
             'created_at' => $user->created_at,
         ], 'User retrieved successfully');
     }

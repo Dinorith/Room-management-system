@@ -4,16 +4,22 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Payment extends Model
 {
-    use HasUuids;
+    use HasUuids, SoftDeletes;
 
     protected $fillable = [
         'tenant_id', 'room_id', 'amount', 'late_fee', 'utility_amount',
         'due_date', 'paid_date', 'status', 'payment_method',
-        'month', 'notes', 'receipt_number', 'auto_generated'
+        'month', 'notes', 'receipt_number', 'auto_generated', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'amount'         => 'decimal:2',

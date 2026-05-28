@@ -11,7 +11,7 @@ class RoomController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Room::with(['tenant', 'roomType']);
+        $query = $this->scopeByOwner(Room::with(['tenant', 'roomType']), $request);
 
         if ($search = $request->query('search')) {
             $query->where('room_number', 'like', "%{$search}%");
@@ -36,7 +36,7 @@ class RoomController extends Controller
             'id' => $room->id,
             'roomNumber' => $room->room_number,
             'type' => $room->type,
-            'status' => $room->status,
+            'status' => ($room->tenant_id || $room->tenant) ? 'occupied' : $room->status,
             'tenant' => $room->tenant->name ?? null,
             'rent' => $room->rent,
             'capacity' => $room->capacity,
@@ -52,16 +52,16 @@ class RoomController extends Controller
         return $this->paginated($rooms);
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $room = Room::with(['tenant', 'roomType'])->find($id);
+        $room = $this->scopeByOwner(Room::with(['tenant', 'roomType']), $request)->find($id);
         if (!$room) return $this->error('Room not found', 'not_found', null, 404);
 
         return $this->success([
             'id' => $room->id,
             'roomNumber' => $room->room_number,
             'type' => $room->type,
-            'status' => $room->status,
+            'status' => ($room->tenant_id || $room->tenant) ? 'occupied' : $room->status,
             'tenant' => $room->tenant ? ['id' => $room->tenant->id, 'name' => $room->tenant->name, 'phone' => $room->tenant->phone, 'email' => $room->tenant->email] : null,
             'rent' => $room->rent,
             'capacity' => $room->capacity,
@@ -109,14 +109,18 @@ class RoomController extends Controller
             }
         }
 
+        $data['user_id'] = $request->user()->id;
+
         $room = Room::create($data);
+
+        $this->logActivity($request, 'property_created', 'Room ' . $room->room_number . ' added by ' . $request->user()->name);
 
         return $this->success($room, 'Room created successfully', 201);
     }
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $room = Room::find($id);
+        $room = $this->scopeByOwner(Room::query(), $request)->find($id);
         if (!$room) return $this->error('Room not found', 'not_found', null, 404);
 
         $v = $request->validate([
@@ -153,12 +157,13 @@ class RoomController extends Controller
         }
 
         $room->update($data);
+        $this->logActivity($request, 'property_updated', 'Room ' . $room->room_number . ' details updated by ' . $request->user()->name);
         return $this->success($room->fresh(), 'Room updated successfully');
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $room = Room::find($id);
+        $room = $this->scopeByOwner(Room::query(), $request)->find($id);
         if (!$room) return $this->error('Room not found', 'not_found', null, 404);
 
         // Delete all related data
@@ -171,7 +176,9 @@ class RoomController extends Controller
         \App\Models\MaintenanceRequest::where('room_id', $room->id)->delete();
         \App\Models\Utility::where('room_id', $room->id)->delete();
 
+        $roomNumber = $room->room_number;
         $room->delete();
+        $this->logActivity($request, 'property_deleted', 'Room ' . $roomNumber . ' and related data deleted by ' . $request->user()->name);
         return $this->success(null, 'Room and related data deleted successfully');
     }
 }

@@ -1,4 +1,4 @@
-import { Save, User, Zap, CreditCard, LogOut, AlertTriangle, MessageCircle, CheckCircle2, Send, Home, Plus, Edit2, Trash2, X } from "lucide-react";
+import { Save, User, Zap, CreditCard, LogOut, AlertTriangle, MessageCircle, CheckCircle2, Send, Home, Plus, Edit2, Trash2, X, DollarSign, Clock } from "lucide-react";
 import { Button } from "../components/Button";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
@@ -325,17 +325,17 @@ export function Settings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-muted-foreground mb-2">Currency</label>
-                <select value={settings.currency || "USD"}
-                  onChange={(e) => setSettings({ ...settings, currency: e.target.value })}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="USD">USD</option><option value="KHR">KHR</option>
-                </select>
+                <div className="w-full px-4 py-2 border border-border rounded-lg bg-muted/50 text-foreground text-sm font-medium flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-primary shrink-0" /> USD ($) — US Dollar
+                  <span className="ml-auto text-[10px] text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">Fixed</span>
+                </div>
               </div>
               <div>
                 <label className="block text-sm text-muted-foreground mb-2">Timezone</label>
-                <input type="text" value={settings.timezone || ""}
-                  onChange={(e) => setSettings({ ...settings, timezone: e.target.value })}
-                  className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary" />
+                <div className="w-full px-4 py-2 border border-border rounded-lg bg-muted/50 text-foreground text-sm font-medium flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary shrink-0" /> Asia/Phnom_Penh (GMT+7)
+                  <span className="ml-auto text-[10px] text-muted-foreground bg-primary/10 px-2 py-0.5 rounded-full font-bold uppercase tracking-wide">Fixed</span>
+                </div>
               </div>
             </div>
             <div className="flex justify-end">

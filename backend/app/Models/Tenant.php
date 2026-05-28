@@ -11,8 +11,13 @@ class Tenant extends Model
 
     protected $fillable = [
         'name', 'room_id', 'phone', 'email', 'move_in_date', 'move_out_date',
-        'id_number', 'emergency_contact', 'status'
+        'id_number', 'emergency_contact', 'status', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'move_in_date'  => 'date',

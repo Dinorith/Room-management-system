@@ -1,4 +1,4 @@
-import { FileText, AlertCircle, Trash2, Plus, RefreshCw, CheckCircle, ShieldCheck, Lock, Smartphone, X, Download, PenTool, Eye, Copy } from "lucide-react";
+import { FileText, AlertCircle, Trash2, Plus, RefreshCw, CheckCircle, ShieldCheck, Lock, Clock, X, Download, Eye, Copy } from "lucide-react";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { useState, useEffect } from "react";
@@ -18,7 +18,7 @@ export function Contracts() {
     endDate: "", 
     rentAmount: "", 
     terms: "",
-    status: "draft" // default to app-based draft signature
+    status: "draft" // default to web-based draft signature
   });
   const [selectedContract, setSelectedContract] = useState<any>(null);
 
@@ -42,10 +42,16 @@ export function Contracts() {
       const res = await api.getContracts({ limit: "50" });
       const list = res.data || [];
       setContracts(list);
-      // Sync selected contract if open
+      // Sync selected contract if open (preserve details like terms and signature)
       if (selectedContract) {
         const updated = list.find((c: any) => c.id === selectedContract.id);
-        if (updated) setSelectedContract(updated);
+        if (updated) {
+          setSelectedContract((prev: any) => ({
+            ...prev,
+            ...updated,
+            terms: prev?.terms || updated.terms,
+          }));
+        }
       }
     } catch (err) { console.error(err); }
     finally { setLoading(false); }
@@ -63,6 +69,23 @@ export function Contracts() {
       const res = await api.getRooms({ limit: "100" });
       setRooms(res.data || []);
     } catch { }
+  };
+
+  const fetchContractDetails = async (contract: any) => {
+    setSelectedContract(contract);
+    try {
+      const res = await api.getContract(contract.id);
+      if (res?.data) {
+        const fullData = res.data;
+        setSelectedContract({
+          ...fullData,
+          tenant: fullData.tenant?.name || contract.tenant,
+          room: fullData.room?.roomNumber || contract.room,
+        });
+      }
+    } catch (err) {
+      console.error("Error fetching contract details:", err);
+    }
   };
 
   useEffect(() => { fetchContracts(); fetchTenants(); fetchRooms(); }, []);
@@ -139,17 +162,6 @@ export function Contracts() {
     }
   };
 
-  const handleSimulateSign = async (contractId: string) => {
-    try {
-      await api.post(`/tenant-portal/contracts/${contractId}/sign`);
-      alert("Success: Simulated digital signing from RentFlow app! State synchronized.");
-      await fetchContracts();
-    } catch (err) {
-      console.error(err);
-      alert("Simulation error.");
-    }
-  };
-
   const handleRenewClick = (contract: any) => {
     setRenewingContract(contract);
     setRenewForm({ rentIncrease: 0, durationMonths: 12 });
@@ -178,14 +190,14 @@ export function Contracts() {
     if (status === "active") {
       return (
         <span className="text-[10px] uppercase font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-          <CheckCircle className="w-3 h-3 text-emerald-500" /> App Signed
+          <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Signed
         </span>
       );
     }
     if (status === "draft") {
       return (
         <span className="text-[10px] uppercase font-bold bg-amber-50 text-amber-700 border border-amber-200 px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
-          <AlertCircle className="w-3 h-3 text-amber-500 animate-pulse" /> Pending Tenant Sign
+          <AlertCircle className="w-3 h-3 text-amber-500 animate-pulse" /> Pending Signature
         </span>
       );
     }
@@ -222,7 +234,7 @@ export function Contracts() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold text-foreground">Digital Agreements</h1>
-          <p className="text-muted-foreground mt-1">Manage app-linked smart lease agreements</p>
+          <p className="text-muted-foreground mt-1">Manage digital smart lease agreements</p>
         </div>
         <Button icon={Plus} variant="primary" onClick={() => {
           const dates = getDefaultDates();
@@ -252,7 +264,7 @@ export function Contracts() {
         </div>
         <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm text-muted-foreground">Digitally Signed (App)</h3>
+            <h3 className="text-sm text-muted-foreground">Active & Signed</h3>
             <ShieldCheck className="w-5 h-5 text-emerald-500" />
           </div>
           <div className="text-2xl font-bold text-emerald-600">{activeCount}</div>
@@ -260,7 +272,7 @@ export function Contracts() {
         <div className="bg-card rounded-3xl p-6 border border-foreground/10 shadow-brutal">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm text-muted-foreground">Pending Signatures</h3>
-            <Smartphone className="w-5 h-5 text-amber-500" />
+            <Clock className="w-5 h-5 text-amber-500" />
           </div>
           <div className="text-2xl font-bold text-amber-600">{draftCount}</div>
         </div>
@@ -288,7 +300,7 @@ export function Contracts() {
                 return (
                   <div 
                     key={contract.id} 
-                    onClick={() => setSelectedContract(contract)}
+                    onClick={() => fetchContractDetails(contract)}
                     className={`p-6 transition-colors cursor-pointer hover:bg-muted/30 ${isSelected ? "bg-muted/50 border-l-4 border-primary" : ""}`}
                   >
                     <div className="flex items-start justify-between">
@@ -313,7 +325,7 @@ export function Contracts() {
                       
                       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                         <button 
-                          onClick={() => setSelectedContract(contract)} 
+                          onClick={() => fetchContractDetails(contract)} 
                           className="p-2 hover:bg-foreground/5 rounded-lg transition-colors" 
                           title="Open Signature Vault"
                         >
@@ -389,7 +401,7 @@ export function Contracts() {
                 <ShieldCheck className="w-5 h-5 text-primary" />
                 <h3 className="text-lg font-bold text-foreground">Audit Vault</h3>
               </div>
-              <p className="text-xs text-muted-foreground font-mono">App Lease Verification</p>
+              <p className="text-xs text-muted-foreground font-mono">Lease Verification</p>
             </div>
 
             {selectedContract.status === "active" ? (
@@ -409,17 +421,13 @@ export function Contracts() {
                           {selectedSignatureData.startsWith("typed:") ? selectedSignatureData.substring(6) : selectedSignatureData}
                         </span>
                       )
-                    ) : selectedContract.status === "active" ? (
-                      <span className="text-2xl text-blue-900 font-serif italic tracking-wider">
-                        {selectedContract.tenant}
-                      </span>
                     ) : (
-                      <span className="text-xs text-slate-400 italic">No signature found</span>
+                      <span className="text-xs text-slate-400 italic">No digital signature found</span>
                     )}
                  </div>
                 
                 <div className="text-[11px] space-y-1 font-mono text-emerald-600/90 leading-tight">
-                  <p>• PLATFORM: RentFlow App</p>
+                  <p>• PLATFORM: RentFlow Web</p>
                   <p>• HASH: RF-{selectedContract.id.substring(0, 8).toUpperCase()}</p>
                   <p>• IP: 192.168.1.108 (VERIFIED)</p>
                   <p>• INTEGRITY: Encrypted (AES-256)</p>
@@ -427,14 +435,14 @@ export function Contracts() {
               </div>
             ) : (
               <div className="bg-amber-50/50 border border-amber-200 rounded-2xl p-4 text-amber-800 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-amber-600 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Pending Signature</span>
-                </div>
-                
-                <p className="text-xs text-amber-700/80 leading-relaxed">
-                  Lease has been prepared and sent to the tenant's RentFlow app. Waiting for tenant to digitally sign.
-                </p>
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Pending Signature</span>
+                  </div>
+                  
+                  <p className="text-xs text-amber-750/80 leading-relaxed">
+                    Lease has been prepared. Waiting for tenant to sign digitally via shareable link.
+                  </p>
 
                 <button
                   onClick={() => handleCopySignLink(selectedContract.id)}
@@ -455,12 +463,6 @@ export function Contracts() {
                   )}
                 </button>
 
-                <button
-                  onClick={() => handleSimulateSign(selectedContract.id)}
-                  className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow"
-                >
-                  <PenTool className="w-3.5 h-3.5" /> Simulate Tenant Sign (App)
-                </button>
               </div>
             )}
 
@@ -538,12 +540,12 @@ export function Contracts() {
                   onChange={(e) => setNewContract({ ...newContract, status: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="draft">Draft - Send to Tenant App for Signature</option>
+                  <option value="draft">Draft - Collect Tenant Web Signature</option>
                   <option value="active">Active - Pre-signed Lease (Manual)</option>
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">
                   {newContract.status === "draft" 
-                    ? "✓ Tenant must sign dynamically on their mobile device via RentFlow App."
+                    ? "✓ Tenant must sign dynamically via the shareable signature web link."
                     : "✓ Instantly activated in database. Cryptographic signature will not be required."}
                 </p>
               </div>
@@ -610,11 +612,10 @@ export function Contracts() {
                   onChange={(e) => setRenewForm({ ...renewForm, durationMonths: parseInt(e.target.value) })}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value={6}>6 months</option>
-                  <option value={12}>12 months (1 year)</option>
-                  <option value={18}>18 months</option>
-                  <option value={24}>24 months (2 years)</option>
-                  <option value={36}>36 months (3 years)</option>
+                  <option value={1}>Monthly</option>
+                  <option value={3}>3 Months</option>
+                  <option value={6}>6 Months</option>
+                  <option value={12}>Yearly</option>
                 </select>
               </div>
             </div>

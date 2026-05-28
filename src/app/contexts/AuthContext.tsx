@@ -5,14 +5,16 @@ interface User {
   id: number;
   name: string;
   email: string;
+  role: string;
 }
 
 interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  isSuperAdmin: boolean;
   isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string, passwordConfirmation: string) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -25,6 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const token = api.getToken();
   const isAuthenticated = !!user && !!token;
+  const isSuperAdmin = user?.role === "super_admin";
 
   useEffect(() => {
     // Check if there's a stored token and fetch user
@@ -46,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await api.login(email, password);
     setUser(response.data.user);
+    return response.data.user;
   };
 
   const register = async (name: string, email: string, password: string, passwordConfirmation: string) => {
@@ -63,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, isLoading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isSuperAdmin, isLoading, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

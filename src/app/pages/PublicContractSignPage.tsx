@@ -549,12 +549,8 @@ export function PublicContractSignPage() {
                             {signatureData.startsWith("typed:") ? signatureData.substring(6) : signatureData}
                           </span>
                         )
-                      ) : contract.status === "active" ? (
-                        <span className="text-xl text-emerald-600 font-serif italic tracking-wider">
-                          {contract.tenantName}
-                        </span>
                       ) : (
-                        <span className="text-xs text-slate-400 italic">No signature found</span>
+                        <span className="text-xs text-slate-400 italic">No digital signature found</span>
                       )}
                     </div>
                   </div>

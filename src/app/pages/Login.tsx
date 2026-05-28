@@ -17,8 +17,12 @@ export function Login() {
     setIsLoading(true);
 
     try {
-      await login(email, password);
-      navigate("/");
+      const loggedUser = await login(email, password);
+      if (loggedUser.role === "super_admin") {
+        navigate("/super-admin");
+      } else {
+        navigate("/");
+      }
     } catch (err: any) {
       setError(err.message || "Invalid credentials");
     } finally {
@@ -107,9 +111,13 @@ export function Login() {
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-1">
+            <p className="text-xs text-muted-foreground font-semibold">Demo Accounts:</p>
             <p className="text-xs text-muted-foreground">
-              Default: admin@admin.com / password
+              Super Admin: superadmin@rentflow.com / password
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Owner: owner@rentflow.com / password
             </p>
           </div>
         </div>

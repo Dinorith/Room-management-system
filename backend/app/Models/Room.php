@@ -11,8 +11,14 @@ class Room extends Model
 
     protected $fillable = [
         'room_number', 'type', 'rent', 'capacity', 
-        'status', 'tenant_id', 'amenities', 'room_type_id'
+        'status', 'tenant_id', 'amenities', 'room_type_id',
+        'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'amenities' => 'array',

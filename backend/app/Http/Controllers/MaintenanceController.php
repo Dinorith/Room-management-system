@@ -11,7 +11,7 @@ class MaintenanceController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = MaintenanceRequest::with('room');
+        $query = $this->scopeByOwner(MaintenanceRequest::with('room'), $request);
 
         if ($status = $request->query('status')) $query->where('status', $status);
         if ($priority = $request->query('priority')) $query->where('priority', $priority);
@@ -39,9 +39,9 @@ class MaintenanceController extends Controller
         return $this->paginated($items);
     }
 
-    public function show(string $id): JsonResponse
+    public function show(Request $request, string $id): JsonResponse
     {
-        $m = MaintenanceRequest::with('room')->find($id);
+        $m = $this->scopeByOwner(MaintenanceRequest::with('room'), $request)->find($id);
         if (!$m) return $this->error('Request not found', 'not_found', null, 404);
 
         $expense = Expense::where('maintenance_request_id', $m->id)->first();
@@ -81,6 +81,7 @@ class MaintenanceController extends Controller
             'status' => 'pending',
             'reported_by' => $v['reportedBy'],
             'reported_date' => now()->format('Y-m-d'),
+            'user_id' => $request->user()->id,
         ]);
 
         return $this->success($m->load('room'), 'Maintenance request created', 201);
@@ -88,7 +89,7 @@ class MaintenanceController extends Controller
 
     public function update(Request $request, string $id): JsonResponse
     {
-        $m = MaintenanceRequest::find($id);
+        $m = $this->scopeByOwner(MaintenanceRequest::query(), $request)->find($id);
         if (!$m) return $this->error('Request not found', 'not_found', null, 404);
 
         $v = $request->validate([
@@ -124,6 +125,7 @@ class MaintenanceController extends Controller
                     'date'                   => now()->format('Y-m-d'),
                     'maintenance_request_id' => $m->id,
                     'room_id'                => $m->room_id,
+                    'user_id'                => $m->user_id,
                 ]);
             }
         }
@@ -131,15 +133,16 @@ class MaintenanceController extends Controller
         return $this->success($m->fresh()->load('room'), 'Request updated successfully');
     }
 
-    public function stats(): JsonResponse
+    public function stats(Request $request): JsonResponse
     {
+        $scopeUser = fn($q) => ($oid = $this->getOwnerId($request)) ? $q->where('user_id', $oid) : $q;
         return $this->success([
-            'total' => MaintenanceRequest::count(),
-            'pending' => MaintenanceRequest::where('status', 'pending')->count(),
-            'inProgress' => MaintenanceRequest::where('status', 'in-progress')->count(),
-            'completed' => MaintenanceRequest::where('status', 'completed')->count(),
-            'urgent' => MaintenanceRequest::where('priority', 'urgent')->whereIn('status', ['pending', 'in-progress'])->count(),
-            'totalCost' => round(MaintenanceRequest::where('status', 'completed')->sum('cost'), 2),
+            'total' => $scopeUser(MaintenanceRequest::query())->count(),
+            'pending' => $scopeUser(MaintenanceRequest::query())->where('status', 'pending')->count(),
+            'inProgress' => $scopeUser(MaintenanceRequest::query())->where('status', 'in-progress')->count(),
+            'completed' => $scopeUser(MaintenanceRequest::query())->where('status', 'completed')->count(),
+            'urgent' => $scopeUser(MaintenanceRequest::query())->where('priority', 'urgent')->whereIn('status', ['pending', 'in-progress'])->count(),
+            'totalCost' => round($scopeUser(MaintenanceRequest::query())->where('status', 'completed')->sum('cost'), 2),
         ]);
     }
 }

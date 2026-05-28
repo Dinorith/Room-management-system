@@ -17,6 +17,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FileController;
+use App\Http\Controllers\SuperAdminController;
 
 /*
 |--------------------------------------------------------------------------
@@ -58,7 +59,24 @@ Route::prefix('tenant-portal')->group(function () {
 | Protected Routes (require Bearer token)
 |--------------------------------------------------------------------------
 */
-Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function () {
+Route::middleware(['auth:sanctum', 'throttle:authenticated', 'ensure-active'])->group(function () {
+
+    // Super Admin Routes
+    Route::middleware('role:super_admin')->prefix('super-admin')->group(function () {
+        Route::get('/dashboard', [SuperAdminController::class, 'dashboard']);
+        Route::get('/owners', [SuperAdminController::class, 'getOwners']);
+        Route::post('/owners', [SuperAdminController::class, 'createOwner']);
+        Route::put('/owners/{id}', [SuperAdminController::class, 'updateOwner']);
+        Route::delete('/owners/{id}', [SuperAdminController::class, 'deleteOwner']);
+        Route::put('/owners/{id}/toggle-status', [SuperAdminController::class, 'toggleOwnerStatus']);
+        Route::get('/properties', [SuperAdminController::class, 'getProperties']);
+        Route::delete('/properties/{id}', [SuperAdminController::class, 'deleteProperty']);
+        Route::get('/statistics', [SuperAdminController::class, 'getStatistics']);
+        Route::get('/invoices', [SuperAdminController::class, 'getInvoices']);
+        Route::get('/activity-logs', [SuperAdminController::class, 'getActivityLogs']);
+        Route::get('/settings', [SuperAdminController::class, 'getSettings']);
+        Route::put('/settings', [SuperAdminController::class, 'updateSettings']);
+    });
 
     // Auth
     Route::prefix('auth')->group(function () {
@@ -90,7 +108,7 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated'])->group(function ()
     Route::get('/payments/schedule/{month}', [PaymentController::class, 'schedule']);
     Route::get('/payments/{id}/receipt', [PaymentController::class, 'receipt']);
     Route::post('/payments/generate-invoices', [PaymentController::class, 'generateInvoices']);
-    Route::apiResource('payments', PaymentController::class)->except(['show', 'destroy']);
+    Route::apiResource('payments', PaymentController::class)->except(['show']);
 
     // Maintenance
     Route::get('/maintenance/stats', [MaintenanceController::class, 'stats']);

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { 
   Plus, CheckCircle, Clock, AlertTriangle, Printer, FileText, X, Search, Filter, 
   Download, Award, Zap, ShieldCheck, Inbox, Mail, Calendar, User, DollarSign, Building2,
-  Eye, Link2
+  Eye, Link2, QrCode, CreditCard, Receipt
 } from "lucide-react";
 import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
@@ -34,8 +34,7 @@ export function Payments() {
   
   // New invoice state
   const [newPayment, setNewPayment] = useState({
-    tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending",
-    electricityUsage: "120", waterUsage: "12"
+    tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending"
   });
   const [tenants, setTenants] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -81,6 +80,13 @@ export function Payments() {
           total: total,
           status: p.status || "pending",
           paymentMethod: p.paymentMethod || p.payment_method || "qr_code",
+          roomType: p.roomType || "Standard Suite",
+          property: p.property || {
+            name: "RentFlow Property Group Ltd.",
+            address: "Suite 500, 100 Innovation Way, Tech District",
+            email: "billing@rentflow-pms.com",
+            phone: "+1 (555) 123-4567"
+          },
           // Readings
           elecPrev,
           elecCurr: elecPrev + elecUsage,
@@ -161,23 +167,18 @@ export function Payments() {
     if (!newPayment.tenantId || !newPayment.amount || !newPayment.month) return;
     setError("");
     try {
-      const elecCost = parseFloat(newPayment.electricityUsage) * 0.20;
-      const waterCost = parseFloat(newPayment.waterUsage) * 0.50;
-      const utilityTotal = elecCost + waterCost;
-
       await api.createPayment({
         tenantId: newPayment.tenantId,
         amount: parseFloat(newPayment.amount),
         month: newPayment.month,
         paymentMethod: newPayment.paymentMethod,
         status: newPayment.status,
-        utility_amount: utilityTotal,
+        utility_amount: 0,
         paidDate: newPayment.status === "paid" ? new Date().toISOString().split("T")[0] : null,
       });
       setShowRecordModal(false);
       setNewPayment({
-        tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending",
-        electricityUsage: "120", waterUsage: "12"
+        tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending"
       });
       fetchPayments();
     } catch (err: any) {
@@ -241,15 +242,14 @@ export function Payments() {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-            Invoice & Utilities Manager
+            Invoice Manager
           </h1>
-          <p className="text-muted-foreground mt-1">SaaS billing ledger for room rentals & utilities tracking</p>
+          <p className="text-muted-foreground mt-1">SaaS billing ledger for room rental payments</p>
         </div>
         <div className="flex gap-2">
           <Button icon={Plus} variant="primary" onClick={() => {
             setNewPayment({
-              tenantId: "", amount: "", month: getCurrentMonthString(), paymentMethod: "qr_code", status: "pending",
-              electricityUsage: "120", waterUsage: "12"
+              tenantId: "", amount: "", month: getCurrentMonthString(), paymentMethod: "qr_code", status: "pending"
             });
             setShowRecordModal(true);
           }}>
@@ -358,7 +358,6 @@ export function Payments() {
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Room</th>
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Billing Month</th>
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Rent</th>
-                <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Utilities</th>
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Grand Total</th>
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</th>
                 <th className="px-6 py-3 text-xs font-bold text-muted-foreground uppercase tracking-wider">Actions</th>
@@ -388,14 +387,11 @@ export function Payments() {
                       <td className="px-6 py-4">
                         ${p.rent.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 text-muted-foreground">
-                        ${p.utilityAmount.toFixed(2)}
-                      </td>
                       <td className="px-6 py-4 font-bold text-foreground">
                         ${p.total.toFixed(2)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge variant={p.status === "paid" ? "success" : p.status === "overdue" ? "danger" : "warning"}>
+                        <Badge variant={p.status === "paid" ? "success" : p.status === "overdue" ? "danger" : p.status === "cancelled" || p.status === "duplicate" ? "default" : "warning"}>
                           {p.status.toUpperCase()}
                         </Badge>
                       </td>
@@ -413,7 +409,7 @@ export function Payments() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
+                  <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
                     <div className="flex flex-col items-center gap-2">
                       <Inbox className="w-8 h-8 text-muted-foreground/30" />
                       <p className="font-semibold text-sm">No matching invoices found</p>
@@ -476,42 +472,9 @@ export function Payments() {
                 </div>
               </div>
 
-              {/* Utility usages */}
-              <div className="p-4 bg-muted/35 border border-foreground/5 rounded-2xl space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Utility Consumption Ledger</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] text-muted-foreground block">Electricity usage (kWh)</label>
-                    <input 
-                      type="number" 
-                      value={newPayment.electricityUsage}
-                      onChange={(e) => setNewPayment({ ...newPayment, electricityUsage: e.target.value })}
-                      className="w-full px-2.5 py-1.5 mt-1 border border-border rounded-lg bg-background text-foreground text-xs" 
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] text-muted-foreground block">Water usage (m³)</label>
-                    <input 
-                      type="number" 
-                      value={newPayment.waterUsage}
-                      onChange={(e) => setNewPayment({ ...newPayment, waterUsage: e.target.value })}
-                      className="w-full px-2.5 py-1.5 mt-1 border border-border rounded-lg bg-background text-foreground text-xs" 
-                    />
-                  </div>
-                </div>
-
-              </div>
-
               {/* Live Calculations Summary */}
               {(() => {
                 const rentVal = parseFloat(newPayment.amount) || 0;
-                const elecUsageVal = parseFloat(newPayment.electricityUsage) || 0;
-                const waterUsageVal = parseFloat(newPayment.waterUsage) || 0;
-
-                const elecCost = elecUsageVal * 0.20;
-                const waterCost = waterUsageVal * 0.50;
-                const utilityTotal = elecCost + waterCost;
-                const grandTotal = rentVal + utilityTotal;
 
                 return (
                   <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl space-y-2">
@@ -521,18 +484,10 @@ export function Payments() {
                         <span>Base Rent:</span>
                         <span className="font-semibold text-foreground">${rentVal.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>⚡ Electricity ({elecUsageVal} kWh @ $0.20):</span>
-                        <span className="font-semibold text-foreground">${elecCost.toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>💧 Water ({waterUsageVal} m³ @ $0.50):</span>
-                        <span className="font-semibold text-foreground">${waterCost.toFixed(2)}</span>
-                      </div>
                       <div className="h-px bg-foreground/10 my-1" />
                       <div className="flex justify-between font-bold text-sm text-foreground">
                         <span>Estimated Total:</span>
-                        <span className="text-primary">${grandTotal.toFixed(2)}</span>
+                        <span className="text-primary">${rentVal.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -550,12 +505,12 @@ export function Payments() {
 
       {/* Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4 no-print-backdrop">
-          <div className="bg-card rounded-3xl border border-foreground/10 max-w-5xl w-full p-8 shadow-xl animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden printable-invoice">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4 no-print-backdrop">
+          <div className="bg-card rounded-3xl border border-foreground/15 max-w-5xl w-full p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden printable-invoice border-t-8 border-t-primary">
             {/* Close Button - hidden in print */}
             <button 
               onClick={() => setSelectedInvoice(null)} 
-              className="absolute top-4 right-4 p-1.5 hover:bg-muted rounded-lg transition-colors no-print text-muted-foreground hover:text-foreground"
+              className="absolute top-5 right-5 p-2 hover:bg-muted rounded-xl transition-colors no-print text-muted-foreground hover:text-foreground z-10 border border-foreground/5 hover:border-foreground/10"
               title="Close Modal"
             >
               <X className="w-5 h-5" />
@@ -564,32 +519,42 @@ export function Payments() {
             {/* Premium Invoice Branding Header */}
             <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-foreground/10">
               <div className="space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="bg-primary text-primary-foreground p-2 rounded-2xl shadow-brutal-sm">
-                    <Building2 className="w-6 h-6 text-foreground" />
+                <div className="flex items-center gap-3">
+                  <div className="bg-primary text-primary-foreground p-3 rounded-2xl shadow-brutal-sm border-2 border-foreground shrink-0">
+                    <Building2 className="w-7 h-7 text-foreground" />
                   </div>
                   <div>
-                    <div className="text-xl font-black tracking-tight text-foreground flex items-center">
+                    <div className="text-2xl font-black tracking-tight text-foreground flex items-center">
                       Rent<span className="text-primary font-black">Flow</span>
-                      <span className="text-[9px] uppercase tracking-wider font-extrabold ml-2 px-1.5 py-0.5 bg-muted rounded-md text-muted-foreground border border-foreground/5">PMS</span>
+                      <span className="text-[10px] uppercase tracking-wider font-extrabold ml-2.5 px-2 py-0.5 bg-muted rounded-md text-muted-foreground border border-foreground/5">PMS</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground font-medium">Professional Property & Utility Manager</p>
+                    <p className="text-xs text-muted-foreground font-semibold">Professional Property Management Suite</p>
                   </div>
                 </div>
                 
-                <div className="text-[11px] text-muted-foreground leading-relaxed">
-                  <p className="font-bold text-foreground">RentFlow Property Group Ltd.</p>
-                  <p>Suite 500, 100 Innovation Way, Tech District</p>
-                  <p>billing@rentflow-pms.com · +1 (555) 123-4567</p>
+                <div className="text-xs text-muted-foreground/80 leading-relaxed pl-1">
+                  <p className="font-bold text-foreground">{selectedInvoice.property?.name || "RentFlow Property Group Ltd."}</p>
+                  <p>{selectedInvoice.property?.address || "Suite 500, 100 Innovation Way, Tech District"}</p>
+                  <p>{selectedInvoice.property?.email || "billing@rentflow-pms.com"} · {selectedInvoice.property?.phone || "+1 (555) 123-4567"}</p>
                 </div>
               </div>
 
-              <div className="text-left md:text-right space-y-2 shrink-0">
+              <div className="text-left md:text-right space-y-2 shrink-0 md:pt-2">
                 <h2 className="text-3xl font-black uppercase tracking-widest text-foreground">Invoice</h2>
-                <div className="space-y-1">
-                  <p className="font-mono font-bold text-sm text-primary">{selectedInvoice.invoiceId}</p>
+                <div className="space-y-2">
+                  <p className="font-mono font-bold text-xs text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl inline-block">{selectedInvoice.invoiceId}</p>
                   <div className="flex md:justify-end">
-                    <span className="print-badge inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-muted border border-foreground/5">
+                    <span className={`print-badge inline-flex items-center px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase border-2 shadow-sm ${
+                      selectedInvoice.status === "paid" 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                        : selectedInvoice.status === "overdue" 
+                          ? "bg-rose-50 text-rose-700 border-rose-200 animate-pulse" 
+                          : selectedInvoice.status === "cancelled"
+                            ? "bg-slate-100 text-slate-700 border-slate-300"
+                            : selectedInvoice.status === "duplicate"
+                              ? "bg-slate-100 text-slate-700 border-slate-300"
+                              : "bg-amber-50 text-amber-700 border-amber-200"
+                    }`}>
                       {selectedInvoice.status.toUpperCase()}
                     </span>
                   </div>
@@ -600,94 +565,97 @@ export function Payments() {
             {/* Two-column layout for screen; stacking on mobile and print */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6 print:block print:space-y-6">
               {/* Left Column: Tenant info & itemized table */}
-              <div className="lg:col-span-6 space-y-6 print:space-y-6">
-                {/* Invoice Metadata & Tenant Info */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-muted/30 rounded-2xl p-5 border border-foreground/5">
-                  <div className="space-y-2">
-                    <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Billed To</h3>
-                    <div className="space-y-1 text-sm">
-                      <p className="font-bold text-foreground text-base">{selectedInvoice.tenant}</p>
-                      <p className="text-muted-foreground font-medium">Tenant ID: {selectedInvoice.tenantId ? selectedInvoice.tenantId.substring(0,8).toUpperCase() : "T-MEM-82B"}</p>
-                      <p className="text-muted-foreground font-semibold flex items-center gap-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-muted-foreground" /> Room {selectedInvoice.room} (Standard Suite)
-                      </p>
+              <div className="lg:col-span-7 space-y-6 print:space-y-6">
+                
+                {/* Dual Metadata Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Box 1: Billed To */}
+                  <div className="bg-muted/20 rounded-2xl p-5 border border-foreground/10 space-y-4 relative overflow-hidden shadow-sm">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                      <User className="w-3.5 h-3.5 text-primary" /> Billed To
+                    </h3>
+                    <div className="space-y-3">
+                      <div>
+                        <p className="font-black text-foreground text-xl leading-tight">{selectedInvoice.tenant}</p>
+                        <p className="text-xs text-muted-foreground/80 font-medium mt-1">Tenant ID: {selectedInvoice.tenantId ? selectedInvoice.tenantId.substring(0,8).toUpperCase() : "T-MEM-82B"}</p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+                          <Building2 className="w-3.5 h-3.5" /> Room {selectedInvoice.room}
+                        </span>
+                        <span className="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-card text-muted-foreground border border-foreground/5">
+                          {selectedInvoice.roomType || "Standard Suite"}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Billing Cycle</h3>
-                      <p className="text-sm font-bold text-foreground">{selectedInvoice.month}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Due Date</h3>
-                      <p className="text-sm font-bold text-red-600">{selectedInvoice.dueDate}</p>
-                    </div>
-                    <div className="col-span-2 space-y-1">
-                      <h3 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">Reference & Method</h3>
-                      <p className="text-xs font-mono text-muted-foreground bg-card px-2.5 py-1 rounded-lg border border-foreground/5 inline-block">
-                        {selectedInvoice.paymentMethod.replace('_', ' ').toUpperCase()} · {selectedInvoice.transactionId}
-                      </p>
+                  {/* Box 2: Billing & Methods */}
+                  <div className="bg-muted/20 rounded-2xl p-5 border border-foreground/10 space-y-4 relative overflow-hidden shadow-sm">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-secondary/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-primary" /> Billing Context
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Billing Cycle</p>
+                        <p className="text-sm font-bold text-foreground mt-1">{selectedInvoice.month}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Due Date</p>
+                        <p className={`text-sm font-black mt-1 ${
+                          selectedInvoice.status === "paid" 
+                            ? "text-emerald-600" 
+                            : selectedInvoice.status === "overdue"
+                              ? "text-red-600 font-extrabold"
+                              : "text-amber-600"
+                        }`}>{selectedInvoice.dueDate}</p>
+                      </div>
+                      <div className="col-span-2 pt-1">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Reference & Method</p>
+                        <p className="text-xs font-mono text-muted-foreground bg-card px-3 py-1.5 rounded-xl border border-foreground/5 inline-block mt-1">
+                          {selectedInvoice.paymentMethod.replace('_', ' ').toUpperCase()} · {selectedInvoice.transactionId}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Itemized Table of Charges */}
-                <div className="overflow-hidden rounded-2xl border border-foreground/5">
+                <div className="overflow-hidden rounded-2xl border border-foreground/10 bg-card shadow-md">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-muted/65 border-b border-foreground/5 text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
-                        <th className="p-3 pl-4">Description</th>
-                        <th className="p-3 text-center">Detail / Rate</th>
-                        <th className="p-3 pr-4 text-right">Amount</th>
+                      <tr className="bg-muted/80 border-b border-foreground/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                        <th className="p-4 pl-6">Description</th>
+                        <th className="p-4 text-center">Billing Duration</th>
+                        <th className="p-4 pr-6 text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-foreground/5 text-sm">
-                      {/* Rent Row */}
+                      {/* Rent Lease Row */}
                       <tr className="hover:bg-muted/10 transition-colors">
-                        <td className="p-3 pl-4">
-                          <div className="font-bold text-foreground">Monthly Base Room Lease</div>
-                          <div className="text-[10px] text-muted-foreground">Lease for Room {selectedInvoice.room}</div>
-                        </td>
-                        <td className="p-3 text-center text-muted-foreground text-xs font-medium">1 Month</td>
-                        <td className="p-3 pr-4 text-right font-bold text-foreground">${selectedInvoice.rent.toFixed(2)}</td>
-                      </tr>
-
-                      {/* Electricity Row */}
-                      <tr className="hover:bg-muted/10 transition-colors">
-                        <td className="p-3 pl-4">
-                          <div className="font-bold text-foreground flex items-center gap-1.5">
-                            <Zap className="w-3.5 h-3.5 text-amber-500" /> Electricity Usage Surcharge
+                        <td className="p-4 pl-6">
+                          <div className="font-bold text-foreground flex items-center gap-2">
+                            <Receipt className="w-4.5 h-4.5 text-primary shrink-0" /> Monthly Base Room Lease
                           </div>
-                          <div className="text-[10px] text-muted-foreground">Reading: {selectedInvoice.elecPrev} kWh ➔ {selectedInvoice.elecCurr} kWh</div>
+                          <div className="text-xs text-muted-foreground mt-1">Standard lease fee for Room {selectedInvoice.room}</div>
                         </td>
-                        <td className="p-3 text-center text-muted-foreground text-xs font-medium font-mono">{selectedInvoice.elecUsage} kWh @ $0.20</td>
-                        <td className="p-3 pr-4 text-right font-bold text-foreground">${(selectedInvoice.elecUsage * 0.20).toFixed(2)}</td>
+                        <td className="p-4 text-center text-muted-foreground text-xs font-semibold">1 Month</td>
+                        <td className="p-4 pr-6 text-right font-black text-foreground text-base">${selectedInvoice.rent.toFixed(2)}</td>
                       </tr>
 
-                      {/* Water Row */}
-                      <tr className="hover:bg-muted/10 transition-colors">
-                        <td className="p-3 pl-4">
-                          <div className="font-bold text-foreground flex items-center gap-1.5">
-                            <Building2 className="w-3.5 h-3.5 text-blue-500" /> Water Consumption Surcharge
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">Reading: {selectedInvoice.waterPrev} m³ ➔ {selectedInvoice.waterCurr} m³</div>
-                        </td>
-                        <td className="p-3 text-center text-muted-foreground text-xs font-medium font-mono">{selectedInvoice.waterUsage} m³ @ $0.50</td>
-                        <td className="p-3 pr-4 text-right font-bold text-foreground">${(selectedInvoice.waterUsage * 0.50).toFixed(2)}</td>
-                      </tr>
-
-                      {/* Late settlement fee if overdue */}
+                      {/* Late penalty row */}
                       {selectedInvoice.lateFee > 0 && (
-                        <tr className="bg-red-500/5 hover:bg-red-500/10 transition-colors">
-                          <td className="p-3 pl-4">
-                            <div className="font-bold text-red-600 flex items-center gap-1.5">
-                              <AlertTriangle className="w-3.5 h-3.5 text-red-500" /> Late Settlement Penalty
+                        <tr className="bg-rose-500/5 hover:bg-rose-500/10 transition-colors border-l-4 border-l-rose-500">
+                          <td className="p-4 pl-6">
+                            <div className="font-bold text-rose-600 flex items-center gap-1.5">
+                              <AlertTriangle className="w-4.5 h-4.5 text-rose-500 shrink-0" /> Late Settlement Penalty
                             </div>
-                            <div className="text-[10px] text-red-500/80">Applied for overdue invoice settlement</div>
+                            <div className="text-xs text-rose-500/80 mt-1">Applied for late invoice settlement</div>
                           </td>
-                          <td className="p-3 text-center text-red-500/80 text-xs font-bold">Late Charge</td>
-                          <td className="p-3 pr-4 text-right font-bold text-red-600">${selectedInvoice.lateFee.toFixed(2)}</td>
+                          <td className="p-4 text-center text-rose-500/80 text-xs font-bold">Late Charge</td>
+                          <td className="p-4 pr-6 text-right font-black text-rose-600 text-base">${selectedInvoice.lateFee.toFixed(2)}</td>
                         </tr>
                       )}
                     </tbody>
@@ -695,135 +663,86 @@ export function Payments() {
                 </div>
               </div>
 
-              {/* Right Column: Utilities & Totals side-by-side */}
-              <div className="lg:col-span-6 flex flex-col justify-between space-y-6 print:space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:block print:space-y-6">
-                  {/* Utility Meter Readings Summary Visual (Screen Only) */}
-                  <div className="border border-foreground/5 bg-muted/20 rounded-2xl p-4 no-print">
-                    <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-1.5">
-                      <Zap className="w-3.5 h-3.5 text-primary" /> Utility Smart-Meter Breakdown
-                    </h4>
-                    <div className="grid grid-cols-1 gap-4">
-                      {/* Electricity visual */}
-                      <div className="bg-card p-3 rounded-xl border border-foreground/5 space-y-2 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-amber-500/5 rounded-full -mr-4 -mt-4 flex items-center justify-center shrink-0">
-                          <Zap className="w-8 h-8 text-amber-500/10" />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-extrabold text-foreground flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" /> Electricity
-                          </span>
-                          <span className="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded-md font-mono font-bold">
-                            {selectedInvoice.elecUsage} kWh
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                          <div className="bg-muted/40 py-1.5 rounded-lg">
-                            <span className="block text-[8px] text-muted-foreground uppercase font-bold">Prev</span>
-                            <span className="font-bold font-mono text-foreground">{selectedInvoice.elecPrev}</span>
-                          </div>
-                          <div className="bg-muted/40 py-1.5 rounded-lg">
-                            <span className="block text-[8px] text-muted-foreground uppercase font-bold">Curr</span>
-                            <span className="font-bold font-mono text-foreground">{selectedInvoice.elecCurr}</span>
-                          </div>
-                          <div className="bg-amber-500/10 py-1.5 rounded-lg border border-amber-500/20">
-                            <span className="block text-[8px] text-amber-600 uppercase font-bold">Cost</span>
-                            <span className="font-mono text-amber-600 font-bold">${(selectedInvoice.elecUsage * 0.20).toFixed(2)}</span>
-                          </div>
-                        </div>
+              {/* Right Column: Totals Summary & Status Cards */}
+              <div className="lg:col-span-5 flex flex-col justify-between space-y-6 print:space-y-6">
+                <div className="space-y-6">
+                  {selectedInvoice.status === "paid" ? (
+                    /* Official Payment Receipt Card */
+                    <div className="flex items-start gap-4 p-5 bg-emerald-500/5 rounded-2xl border-2 border-emerald-500/20 w-full relative overflow-hidden shadow-sm">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
+                      <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center border-2 border-emerald-500/20 shrink-0 text-emerald-600">
+                        <CheckCircle className="w-6 h-6" />
                       </div>
-
-                      {/* Water visual */}
-                      <div className="bg-card p-3 rounded-xl border border-foreground/5 space-y-2 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full -mr-4 -mt-4 flex items-center justify-center shrink-0">
-                          <Building2 className="w-8 h-8 text-blue-500/10" />
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-extrabold text-foreground flex items-center gap-1">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> Water
-                          </span>
-                          <span className="text-[10px] bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-md font-mono font-bold">
-                            {selectedInvoice.waterUsage} m³
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-                          <div className="bg-muted/40 py-1.5 rounded-lg">
-                            <span className="block text-[8px] text-muted-foreground uppercase font-bold">Prev</span>
-                            <span className="font-bold font-mono text-foreground">{selectedInvoice.waterPrev}</span>
-                          </div>
-                          <div className="bg-muted/40 py-1.5 rounded-lg">
-                            <span className="block text-[8px] text-muted-foreground uppercase font-bold">Curr</span>
-                            <span className="font-bold font-mono text-foreground">{selectedInvoice.waterCurr}</span>
-                          </div>
-                          <div className="bg-blue-500/10 py-1.5 rounded-lg border border-blue-500/20">
-                            <span className="block text-[8px] text-blue-600 uppercase font-bold">Cost</span>
-                            <span className="font-mono text-blue-600 font-bold">${(selectedInvoice.waterUsage * 0.50).toFixed(2)}</span>
-                          </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Official Payment Receipt</div>
+                        <p className="text-xs text-emerald-800 font-bold leading-relaxed">
+                          This invoice is fully settled. Paid in full on {selectedInvoice.paidDate || new Date().toISOString().split("T")[0]}.
+                        </p>
+                        <div className="pt-2">
+                          <p className="text-[9px] font-mono text-emerald-800 bg-emerald-500/15 px-2.5 py-1 rounded border border-emerald-500/10 inline-block font-bold">
+                            Auth ID: {selectedInvoice.transactionId}
+                          </p>
                         </div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Scan to Pay & Totals Summary side-by-side on print */}
-                  <div className="space-y-6 print-totals-row">
-                    {selectedInvoice.status === "paid" ? (
-                      /* Official Payment Receipt Card */
-                      <div className="flex items-start gap-4 p-4 bg-emerald-500/5 rounded-2xl border border-emerald-500/20 w-full">
-                        <div className="w-20 h-20 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20 shrink-0 text-emerald-600">
-                          <CheckCircle className="w-10 h-10 text-emerald-600" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600">Invoice Fully Settled</div>
-                          <p className="text-[10px] text-emerald-700 font-medium leading-snug">
-                            This invoice was paid on {selectedInvoice.paidDate || new Date().toISOString().split("T")[0]}. All dues have been cleared.
+                  ) : (
+                    /* Awaiting QR Settlement Portal */
+                    <div className="flex items-start gap-4 p-5 bg-amber-500/5 rounded-2xl border-2 border-amber-500/20 w-full relative overflow-hidden shadow-sm">
+                      <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full -mr-8 -mt-8 pointer-events-none" />
+                      <div className="w-12 h-12 bg-amber-500/10 rounded-xl flex items-center justify-center border-2 border-amber-500/20 shrink-0 text-amber-600">
+                        <QrCode className="w-6 h-6 animate-pulse" />
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-black uppercase tracking-widest text-amber-600">Secure Settlement Portal</div>
+                        <p className="text-xs text-amber-800 font-bold leading-relaxed">
+                          Tenant secure billing is ready. Scan the QR code from the payment page or click the copy link below to send directly to the tenant.
+                        </p>
+                        <div className="pt-2">
+                          <p className="text-[9px] font-black text-amber-800 bg-amber-500/15 px-2.5 py-1 rounded border border-amber-500/10 inline-flex items-center gap-1 font-bold">
+                            <CreditCard className="w-3 h-3" /> Direct QR Settlement Enabled
                           </p>
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            <p className="text-[9px] font-mono text-emerald-800 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/10 inline-block">
-                              Receipt ID: {selectedInvoice.transactionId}
-                            </p>
-                          </div>
                         </div>
                       </div>
-                    ) : null}
+                    </div>
+                  )}
 
-                    {/* Totals Summary */}
-                    <div className="space-y-2.5 text-xs text-muted-foreground flex flex-col">
-                      <div className="flex justify-between font-medium">
-                        <span>Room Lease:</span>
-                        <span className="text-foreground font-semibold">${selectedInvoice.rent.toFixed(2)}</span>
+                  {/* Totals Receipt Card */}
+                  <div className="bg-muted/30 rounded-2xl p-5 border border-foreground/10 space-y-4 shadow-sm">
+                    <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Invoice Summary</h4>
+                    <div className="space-y-3 text-xs text-muted-foreground flex flex-col">
+                      <div className="flex justify-between font-semibold">
+                        <span>Monthly Base Lease:</span>
+                        <span className="text-foreground">${selectedInvoice.rent.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between font-medium">
-                        <span>Utilities:</span>
-                        <span className="text-foreground font-semibold">${selectedInvoice.utilityAmount.toFixed(2)}</span>
-                      </div>
+                      
                       {selectedInvoice.lateFee > 0 && (
-                        <div className="flex justify-between font-medium text-red-500">
-                          <span>Late Penalty:</span>
-                          <span className="font-semibold">${selectedInvoice.lateFee.toFixed(2)}</span>
+                        <div className="flex justify-between font-semibold text-rose-500">
+                          <span>Late Settlement Fee:</span>
+                          <span>+${selectedInvoice.lateFee.toFixed(2)}</span>
                         </div>
                       )}
                       
-                      <div className="h-px bg-foreground/10 my-1" />
+                      <div className="border-t border-dashed border-foreground/15 my-1" />
                       
-                      <div className="flex justify-between items-baseline p-3 bg-primary/5 rounded-2xl border border-primary/10">
-                        <span className="font-extrabold text-xs text-foreground">Grand Total:</span>
-                        <span className="text-xl font-black text-primary font-mono">${selectedInvoice.total.toFixed(2)}</span>
+                      <div className="flex justify-between items-baseline p-4 bg-primary/10 rounded-xl border border-primary/20">
+                        <span className="font-black text-xs text-foreground uppercase tracking-widest">Grand Total:</span>
+                        <span className="text-3xl font-black text-primary font-mono select-all">${selectedInvoice.total.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 {/* Bottom Controls Row & Watermark */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-auto pt-5 border-t border-foreground/5">
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> Metrics synced with smart meters
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-foreground/10 mt-auto">
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 font-bold">
+                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> RentFlow Certified Billing Ledger
                   </div>
                   <div className="flex flex-wrap items-center gap-2 no-print">
                     <Button 
                       variant="outline" 
                       icon={copiedInvoiceId === selectedInvoice.id ? CheckCircle : Link2} 
                       onClick={() => handleCopyPaymentLink(selectedInvoice.id)}
-                      className={copiedInvoiceId === selectedInvoice.id ? "text-emerald-600 border-emerald-500 bg-emerald-50" : ""}
+                      className={copiedInvoiceId === selectedInvoice.id ? "text-emerald-600 border-emerald-500 bg-emerald-50 font-bold" : "font-semibold"}
                     >
                       {copiedInvoiceId === selectedInvoice.id ? "Link Copied!" : "Copy Payment Link"}
                     </Button>
@@ -831,21 +750,47 @@ export function Payments() {
                       variant="outline" 
                       icon={Eye} 
                       onClick={() => window.open(`${window.location.protocol}//${window.location.host}/pay/${selectedInvoice.id}`, '_blank')}
+                      className="font-semibold"
                     >
-                      Open in New Tab
+                      Open Portal
                     </Button>
-                    <Button variant="outline" icon={Printer} onClick={() => window.print()}>
+                    <Button variant="outline" icon={Printer} onClick={() => window.print()} className="font-semibold">
                       Print
                     </Button>
                     {selectedInvoice.status !== "paid" && (
-                      <Button 
-                        variant="primary" 
-                        icon={CheckCircle} 
-                        disabled={updatingId === selectedInvoice.id} 
-                        onClick={() => handleMarkAsPaidAdmin(selectedInvoice.id)}
-                      >
-                        {updatingId === selectedInvoice.id ? "Settling..." : "Mark Paid"}
-                      </Button>
+                      <>
+                        <Button 
+                          variant="outline" 
+                          icon={AlertTriangle} 
+                          disabled={updatingId === selectedInvoice.id} 
+                          onClick={async () => {
+                            if (confirm("Are you sure you want to void and remove this invoice?")) {
+                              setUpdatingId(selectedInvoice.id);
+                              try {
+                                await api.deletePayment(selectedInvoice.id);
+                                setSelectedInvoice(null);
+                                fetchPayments();
+                              } catch (err: any) {
+                                alert(err.message || "Failed to void invoice");
+                              } finally {
+                                setUpdatingId(null);
+                              }
+                            }
+                          }}
+                          className="text-red-700 border-red-300 hover:bg-red-50 font-bold"
+                        >
+                          Void Invoice
+                        </Button>
+                        <Button 
+                          variant="primary" 
+                          icon={CheckCircle} 
+                          disabled={updatingId === selectedInvoice.id} 
+                          onClick={() => handleMarkAsPaidAdmin(selectedInvoice.id)}
+                          className="font-bold shadow-brutal-sm border border-foreground animate-pulse"
+                        >
+                          {updatingId === selectedInvoice.id ? "Settling..." : "Mark Paid"}
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>

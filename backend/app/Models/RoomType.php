@@ -16,7 +16,13 @@ class RoomType extends Model
         'capacity',
         'description',
         'status',
+        'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'base_price' => 'decimal:2',

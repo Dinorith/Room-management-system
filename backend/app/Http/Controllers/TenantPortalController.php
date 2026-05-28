@@ -291,7 +291,7 @@ class TenantPortalController extends Controller
             Notification::create([
                 'user_id' => $admin->id,
                 'title' => "Contract Signed: Room {$roomNum}",
-                'message' => "Tenant " . ($tenant->name ?? 'Guest') . " digitally signed the contract in the RentFlow app.",
+                'message' => "Tenant " . ($tenant->name ?? 'Guest') . " digitally signed the contract.",
                 'type' => 'general',
                 'read' => false,
             ]);

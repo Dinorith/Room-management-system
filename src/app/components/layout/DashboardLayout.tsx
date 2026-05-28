@@ -4,7 +4,7 @@ import { Header } from "./Header";
 import { useAuth } from "../../contexts/AuthContext";
 
 export function DashboardLayout() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isSuperAdmin, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -19,6 +19,10 @@ export function DashboardLayout() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (isSuperAdmin) {
+    return <Navigate to="/super-admin" replace />;
   }
 
   return (

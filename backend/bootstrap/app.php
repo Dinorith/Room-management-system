@@ -24,6 +24,8 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->alias([
             'auth' => \Illuminate\Auth\Middleware\Authenticate::class,
+            'role' => \App\Http\Middleware\CheckRole::class,
+            'ensure-active' => \App\Http\Middleware\EnsureOwnerIsActive::class,
         ]);
 
         // Disable CSRF for API routes

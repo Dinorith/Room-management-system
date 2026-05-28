@@ -14,11 +14,12 @@
 The Admin Dashboard is a comprehensive web application designed to manage rental properties, tenants, payments, maintenance requests, utilities, contracts, and generate financial reports. It provides property managers with centralized control over all operational aspects of their rental business.
 
 ### 1.2 Target Users
+- Super Admins (Platform Administrators)
+- Property Owners / Landlords
 - Property Managers
 - Building Administrators
 - Finance/Accounting Staff
 - Maintenance Coordinators
-- System Administrators
 
 ### 1.3 Key Objectives
 - Streamline tenant and room management
@@ -48,7 +49,7 @@ To maintain a streamlined, secure, and focused application, the following bounda
 - **Basic Document Handling:** Lease agreements and receipts are handled as static attachments (PDF/JPEG/PNG). Advanced Optical Character Recognition (OCR) for receipt scanning and direct legally-binding DocuSign/Adobe Sign integrations are not included.
 - **Third-Party Messaging Channels:** Notifications (SMS/Emails) are dispatched via standard webhooks/APIs (like Twilio, Mailgun, or standard SMTP servers) but do not support advanced features such as real-time WebSocket-based in-app chat, or native mobile push notifications.
 - **No Native Mobile App:** The entire platform is a highly responsive web application built with HTML, Tailwind CSS, React, and Laravel. While it scales beautifully on mobile browsers, it does not include standalone native iOS or Android applications on app stores.
-- **Single-Tenant Structure:** The architecture is designed for a single property management entity/landlord. Multi-tenant SaaS capability (allowing multiple independent landlords to subscribe, manage, and isolate their respective properties) is out of scope.
+- **Multi-Tenant Scoping Boundary:** The system is built as a multi-owner SaaS platform where landlords manage their respective properties in perfect isolation. Direct cross-owner communication or cross-owner property trades are not natively supported and must be done through the Super Admin platform console.
 
 ---
 
@@ -58,37 +59,36 @@ To maintain a streamlined, secure, and focused application, the following bounda
 ### 2.1 AUTHENTICATION & USER MANAGEMENT
 
 #### FR 2.1.1 User Login
-- **Description:** Users must authenticate with email and password
+- **Description:** Users must authenticate with email and password, which determines their system access level (Super Admin vs Property Owner/Landlord)
 - **Acceptance Criteria:**
   - User can login with valid credentials
+  - Deactivated landlord accounts are restricted from accessing system resources and receive clear account suspension messages (403 forbidden)
   - System displays error for invalid credentials
-  - User session is maintained for 24 hours
-  - JWT tokens are issued upon successful login
-  - Password reset functionality available
+  - User session is maintained with Sanctum tokens
+  - Redirects user to appropriate workspace (Super Admin Console or Owner Dashboard) based on role
+  - Password reset/change functionality available
 
 #### FR 2.1.2 User Logout
 - **Description:** Users can securely logout from the system
 - **Acceptance Criteria:**
   - Session is terminated
-  - JWT token is invalidated
+  - Sanctum API token is invalidated
   - User is redirected to login page
-  - Session data is cleared
+  - Local state and tokens are cleared
 
 #### FR 2.1.3 User Registration
-- **Description:** New users can register accounts
+- **Description:** Public registration is disabled to maintain secure closed-loop SaaS platform operations. Landlord accounts are registered directly by Super Admin.
 - **Acceptance Criteria:**
-  - Form validation for email and password
-  - Password strength requirements enforced
-  - Confirmation email sent to verify email
-  - Account created upon verification
+  - Public registration attempts receive a "Registration is disabled" exception (403)
+  - Landlord accounts are created inside the Super Admin Console
 
 #### FR 2.1.4 User Profile Management
 - **Description:** Users can update their profile information
 - **Acceptance Criteria:**
   - Update name, email, phone number
   - Change password functionality
-  - Profile photo upload
-  - View last login information
+  - View profile information
+
 
 ---
 
@@ -894,9 +894,41 @@ To maintain a streamlined, secure, and focused application, the following bounda
   - Alt text for images
   - ARIA labels for interactive elements
 
+### 2.17 SUPER ADMIN CONSOLE
+
+#### FR 2.17.1 Platform Telemetry Dashboard
+- **Description:** Real-time console displaying system-wide aggregate stats
+- **Acceptance Criteria:**
+  - Show platform occupancy, active owners, platform tenants, and global gross revenue
+  - Render room status capacity bars (Occupied vs Vacant vs Offline)
+  - Display recent property registrations and recent landlord accounts joined
+
+#### FR 2.17.2 Owner Account Management (CRUD)
+- **Description:** Super Admin can create, audit, edit, and delete property owner profiles
+- **Acceptance Criteria:**
+  - List owners with pagination, search, and active status filters
+  - Register new landlord account with auto-provisioning of default property settings
+  - Edit owner profile names, emails, and passwords
+  - Permanently purge owner account with cascading delete warnings
+
+#### FR 2.17.3 Landlord Account Activation Toggling
+- **Description:** Instantly suspend or restore landlord access
+- **Acceptance Criteria:**
+  - Toggle is_active flag for any owner
+  - Deactivating an owner instantly revokes all active session tokens
+  - Restrict deactivated landlords from calling any API route
+
+#### FR 2.17.4 Global Property Audit & Purge
+- **Description:** Audit all rooms across landlords with power to prune/delete
+- **Acceptance Criteria:**
+  - List and search all platform rooms filterable by owner and room status
+  - Delete any vacant or maintenance room from the system
+  - Block deletion of occupied rooms with warning validation error
+
 ---
 
 ## 3. NON-FUNCTIONAL REQUIREMENTS
+
 
 ### 3.1 PERFORMANCE
 - Page load time < 2 seconds

@@ -389,13 +389,6 @@ export function PublicPaymentPage() {
                         <span className="text-sm font-black tracking-widest text-[#E6B012]">KHQR</span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[8px] text-gray-400 font-extrabold tracking-wider">CAMBODIA</span>
-                          <div className="w-5 h-3.5 rounded-sm overflow-hidden flex flex-col shrink-0">
-                            <div className="h-1 bg-blue-700" />
-                            <div className="h-1 bg-red-600 flex items-center justify-center">
-                              <span className="w-1 h-1 rounded-full bg-white" />
-                            </div>
-                            <div className="h-1 bg-blue-700" />
-                          </div>
                         </div>
                       </div>
 
@@ -413,9 +406,9 @@ export function PublicPaymentPage() {
                             alt="KHQR Settle Code" 
                             className="w-full h-full object-contain rounded-2xl"
                           />
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
-                            <div className="w-6.5 h-6.5 bg-[#0b2d49] rounded-md flex items-center justify-center text-[8px] font-black text-white">
-                              ABA
+                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
+                            <div className="w-8.5 h-5.5 bg-[#0b2d49] rounded-md flex items-center justify-center text-[7px] font-black text-[#E6B012] tracking-widest uppercase">
+                              DEMO
                             </div>
                           </div>
                         </div>

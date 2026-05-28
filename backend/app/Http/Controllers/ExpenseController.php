@@ -10,7 +10,7 @@ class ExpenseController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Expense::query();
+        $query = $this->scopeByOwner(Expense::query(), $request);
 
         if ($category = $request->query('category')) $query->where('category', strtolower($category));
         if ($from = $request->query('from')) $query->whereDate('date', '>=', $from);
@@ -50,14 +50,15 @@ class ExpenseController extends Controller
             'description' => $v['description'],
             'amount' => $v['amount'],
             'date' => $v['date'],
+            'user_id' => $request->user()->id,
         ]);
 
         return $this->success($expense, 'Expense created successfully', 201);
     }
 
-    public function byCategory(string $category): JsonResponse
+    public function byCategory(Request $request, string $category): JsonResponse
     {
-        $expenses = Expense::where('category', strtolower($category))
+        $expenses = $this->scopeByOwner(Expense::query(), $request)->where('category', strtolower($category))
             ->orderBy('date', 'desc')->get()
             ->map(fn($e) => [
                 'id' => $e->id, 'category' => ucfirst($e->category),
@@ -68,9 +69,9 @@ class ExpenseController extends Controller
         return $this->success($expenses);
     }
 
-    public function monthly(string $month): JsonResponse
+    public function monthly(Request $request, string $month): JsonResponse
     {
-        $expenses = Expense::where('date', 'like', $this->monthToDatePrefix($month) . '%')
+        $expenses = $this->scopeByOwner(Expense::query(), $request)->where('date', 'like', $this->monthToDatePrefix($month) . '%')
             ->orderBy('date', 'desc')->get();
 
         $byCategory = $expenses->groupBy('category')->map(fn($items, $cat) => [
@@ -87,9 +88,9 @@ class ExpenseController extends Controller
         ]);
     }
 
-    public function destroy(string $id): JsonResponse
+    public function destroy(Request $request, string $id): JsonResponse
     {
-        $expense = Expense::find($id);
+        $expense = $this->scopeByOwner(Expense::query(), $request)->find($id);
         if (!$expense) return $this->error('Expense not found', 'not_found', null, 404);
 
         $expense->delete();

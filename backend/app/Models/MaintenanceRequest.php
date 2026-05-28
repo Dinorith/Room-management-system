@@ -11,8 +11,14 @@ class MaintenanceRequest extends Model
 
     protected $fillable = [
         'room_id', 'title', 'description', 'priority', 
-        'status', 'cost', 'reported_by', 'reported_date', 'completed_date', 'notes'
+        'status', 'cost', 'reported_by', 'reported_date', 'completed_date', 'notes',
+        'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'reported_date' => 'date',

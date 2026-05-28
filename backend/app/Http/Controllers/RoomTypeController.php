@@ -15,7 +15,7 @@ class RoomTypeController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = RoomType::query();
+        $query = $this->scopeByOwner(RoomType::query(), $request);
 
         // Filter by status
         if ($request->has('status')) {
@@ -57,9 +57,9 @@ class RoomTypeController extends Controller
     /**
      * Get all active room types (without pagination)
      */
-    public function active(): JsonResponse
+    public function active(Request $request): JsonResponse
     {
-        $roomTypes = RoomType::active()
+        $roomTypes = $this->scopeByOwner(RoomType::active(), $request)
             ->orderBy('name')
             ->get();
 
@@ -75,7 +75,11 @@ class RoomTypeController extends Controller
      */
     public function store(StoreRoomTypeRequest $request): JsonResponse
     {
-        $roomType = RoomType::create($request->validated());
+        $data = $request->validated();
+        if ($request->user() && $request->user()->isOwner()) {
+            $data['user_id'] = $request->user()->id;
+        }
+        $roomType = RoomType::create($data);
 
         return response()->json([
             'success' => true,
@@ -87,8 +91,12 @@ class RoomTypeController extends Controller
     /**
      * Get specific room type details
      */
-    public function show(RoomType $roomType): JsonResponse
+    public function show(Request $request, RoomType $roomType): JsonResponse
     {
+        if ($request->user() && $request->user()->isOwner() && $roomType->user_id !== $request->user()->id) {
+            return $this->error('Unauthorized. Insufficient permissions.', 'unauthorized_room_type', null, 403);
+        }
+
         $roomType->load(['rooms']);
         $roomType->room_count = $roomType->rooms()->count();
 
@@ -104,6 +112,10 @@ class RoomTypeController extends Controller
      */
     public function update(UpdateRoomTypeRequest $request, RoomType $roomType): JsonResponse
     {
+        if ($request->user() && $request->user()->isOwner() && $roomType->user_id !== $request->user()->id) {
+            return $this->error('Unauthorized. Insufficient permissions.', 'unauthorized_room_type', null, 403);
+        }
+
         $roomType->update($request->validated());
 
         return response()->json([
@@ -116,8 +128,12 @@ class RoomTypeController extends Controller
     /**
      * Delete a room type
      */
-    public function destroy(RoomType $roomType): JsonResponse
+    public function destroy(Request $request, RoomType $roomType): JsonResponse
     {
+        if ($request->user() && $request->user()->isOwner() && $roomType->user_id !== $request->user()->id) {
+            return $this->error('Unauthorized. Insufficient permissions.', 'unauthorized_room_type', null, 403);
+        }
+
         // Check if room type has associated rooms
         if ($roomType->rooms()->count() > 0) {
             return response()->json([
@@ -138,13 +154,13 @@ class RoomTypeController extends Controller
     /**
      * Get room type statistics
      */
-    public function statistics(): JsonResponse
+    public function statistics(Request $request): JsonResponse
     {
-        $totalRoomTypes = RoomType::count();
-        $activeRoomTypes = RoomType::active()->count();
-        $inactiveRoomTypes = RoomType::inactive()->count();
+        $totalRoomTypes = $this->scopeByOwner(RoomType::query(), $request)->count();
+        $activeRoomTypes = $this->scopeByOwner(RoomType::active(), $request)->count();
+        $inactiveRoomTypes = $this->scopeByOwner(RoomType::inactive(), $request)->count();
         
-        $roomTypeStats = RoomType::withCount('rooms')
+        $roomTypeStats = $this->scopeByOwner(RoomType::withCount('rooms'), $request)
             ->orderBy('name')
             ->get()
             ->map(function ($roomType) {

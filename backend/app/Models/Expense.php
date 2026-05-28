@@ -11,8 +11,13 @@ class Expense extends Model
 
     protected $fillable = [
         'category', 'description', 'amount', 'date',
-        'maintenance_request_id', 'room_id'
+        'maintenance_request_id', 'room_id', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'amount' => 'decimal:2',

@@ -22,7 +22,8 @@ class ReportController extends Controller
             $month = $date->format('F Y');
         }
 
-        $payments = Payment::whereMonth('due_date', $date->month)
+        $payments = $this->scopeByOwner(Payment::query(), $request)
+            ->whereMonth('due_date', $date->month)
             ->whereYear('due_date', $date->year)->get();
 
         $totalIncome = round($payments->sum(fn($p) => $p->total), 2);
@@ -56,7 +57,8 @@ class ReportController extends Controller
             $date = now();
         }
 
-        $expenses = Expense::whereMonth('date', $date->month)
+        $expenses = $this->scopeByOwner(Expense::query(), $request)
+            ->whereMonth('date', $date->month)
             ->whereYear('date', $date->year)->get();
 
         $byCategory = $expenses->groupBy('category')->map(fn($items, $cat) => [
@@ -72,12 +74,12 @@ class ReportController extends Controller
         ]);
     }
 
-    public function occupancy(): JsonResponse
+    public function occupancy(Request $request): JsonResponse
     {
-        $total = Room::count();
-        $occupied = Room::where('status', 'occupied')->count();
-        $vacant = Room::where('status', 'vacant')->count();
-        $maintenance = Room::where('status', 'maintenance')->count();
+        $total = $this->scopeByOwner(Room::query(), $request)->count();
+        $occupied = $this->scopeByOwner(Room::query(), $request)->where('status', 'occupied')->count();
+        $vacant = $this->scopeByOwner(Room::query(), $request)->where('status', 'vacant')->count();
+        $maintenance = $this->scopeByOwner(Room::query(), $request)->where('status', 'maintenance')->count();
 
         return $this->success([
             'totalRooms' => $total,
@@ -97,12 +99,12 @@ class ReportController extends Controller
             $date = now();
         }
 
-        $income = Payment::where('status', 'paid')
+        $income = $this->scopeByOwner(Payment::query(), $request)->where('status', 'paid')
             ->whereMonth('paid_date', $date->month)
             ->whereYear('paid_date', $date->year)
             ->sum('amount');
 
-        $expenses = Expense::whereMonth('date', $date->month)
+        $expenses = $this->scopeByOwner(Expense::query(), $request)->whereMonth('date', $date->month)
             ->whereYear('date', $date->year)->sum('amount');
 
         return $this->success([
@@ -114,13 +116,13 @@ class ReportController extends Controller
         ]);
     }
 
-    public function tenantSummary(): JsonResponse
+    public function tenantSummary(Request $request): JsonResponse
     {
-        $active = Tenant::where('status', 'active')->count();
-        $inactive = Tenant::where('status', 'inactive')->count();
+        $active = $this->scopeByOwner(Tenant::query(), $request)->where('status', 'active')->count();
+        $inactive = $this->scopeByOwner(Tenant::query(), $request)->where('status', 'inactive')->count();
         $total = $active + $inactive;
 
-        $recentTenants = Tenant::with('room')
+        $recentTenants = $this->scopeByOwner(Tenant::with('room'), $request)
             ->orderBy('created_at', 'desc')->limit(5)->get()
             ->map(fn($t) => [
                 'id' => $t->id, 'name' => $t->name,
@@ -134,16 +136,16 @@ class ReportController extends Controller
         ]);
     }
 
-    public function financialSummary(): JsonResponse
+    public function financialSummary(Request $request): JsonResponse
     {
         $now = now();
 
         // Year-to-date revenue (rent + utilities + late fees)
-        $ytdPayments = Payment::whereYear('due_date', $now->year)->get();
+        $ytdPayments = $this->scopeByOwner(Payment::query(), $request)->whereYear('due_date', $now->year)->get();
         $ytdRevenue = round($ytdPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
 
         // This month income
-        $thisMonthPayments = Payment::whereMonth('due_date', $now->month)
+        $thisMonthPayments = $this->scopeByOwner(Payment::query(), $request)->whereMonth('due_date', $now->month)
             ->whereYear('due_date', $now->year)->get();
         $thisMonthIncome = round($thisMonthPayments->sum(fn($p) => $p->total), 2);
         $thisMonthPaid = round($thisMonthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
@@ -152,15 +154,15 @@ class ReportController extends Controller
         $collectionRate = $thisMonthIncome > 0 ? round(($thisMonthPaid / $thisMonthIncome) * 100) : 0;
 
         // Occupancy rate
-        $totalRooms = Room::count();
-        $occupiedRooms = Room::where('status', 'occupied')->count();
+        $totalRooms = $this->scopeByOwner(Room::query(), $request)->count();
+        $occupiedRooms = $this->scopeByOwner(Room::query(), $request)->where('status', 'occupied')->count();
         $occupancyRate = $totalRooms > 0 ? round(($occupiedRooms / $totalRooms) * 100) : 0;
 
         // Monthly income summary (last 6 months)
         $monthlySummary = [];
         for ($i = 5; $i >= 0; $i--) {
             $date = $now->copy()->subMonths($i);
-            $monthPayments = Payment::whereMonth('due_date', $date->month)
+            $monthPayments = $this->scopeByOwner(Payment::query(), $request)->whereMonth('due_date', $date->month)
                 ->whereYear('due_date', $date->year)->get();
             $total = round($monthPayments->sum(fn($p) => $p->total), 2);
             $paid = round($monthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
@@ -177,7 +179,7 @@ class ReportController extends Controller
         }
 
         // Payment methods distribution - grouping null, empty and 'cash' together
-        $paidPayments = Payment::where('status', 'paid')->get();
+        $paidPayments = $this->scopeByOwner(Payment::query(), $request)->where('status', 'paid')->get();
         $totalPaidCount = $paidPayments->count();
         $methodDistribution = [];
         if ($totalPaidCount > 0) {
@@ -192,7 +194,8 @@ class ReportController extends Controller
         }
 
         // Room type distribution
-        $roomTypes = Room::selectRaw('type, COUNT(*) as count')
+        $roomTypes = $this->scopeByOwner(Room::query(), $request)
+            ->selectRaw('type, COUNT(*) as count')
             ->groupBy('type')->get()
             ->map(fn($r) => [
                 'type' => ucfirst($r->type),
@@ -200,7 +203,7 @@ class ReportController extends Controller
             ]);
 
         // YTD expenses
-        $ytdExpenses = round(Expense::whereYear('date', $now->year)->sum('amount'), 2);
+        $ytdExpenses = round($this->scopeByOwner(Expense::query(), $request)->whereYear('date', $now->year)->sum('amount'), 2);
 
         return $this->success([
             'ytdRevenue' => $ytdRevenue,

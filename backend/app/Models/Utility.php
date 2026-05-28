@@ -11,8 +11,13 @@ class Utility extends Model
 
     protected $fillable = [
         'room_id', 'electricity', 'water', 'month', 
-        'electricity_cost', 'water_cost'
+        'electricity_cost', 'water_cost', 'user_id',
     ];
+
+    public function owner()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
 
     protected $casts = [
         'electricity' => 'decimal:2',

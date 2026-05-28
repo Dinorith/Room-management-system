@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateRoomTypeRequest extends FormRequest
 {
@@ -19,10 +20,21 @@ class UpdateRoomTypeRequest extends FormRequest
      */
     public function rules(): array
     {
-        $roomTypeId = $this->route('room_type')->id;
+        $roomType = $this->route('room_type');
+        $roomTypeId = $roomType ? $roomType->id : null;
 
         return [
-            'name' => 'required|string|max:100|unique:room_types,name,' . $roomTypeId,
+            'name' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('room_types', 'name')
+                    ->ignore($roomTypeId)
+                    ->where(function ($query) {
+                        $user = request()->user();
+                        return $query->where('user_id', $user ? $user->id : null);
+                    }),
+            ],
             'base_price' => 'required|numeric|min:0|regex:/^\d+(\.\d{1,2})?$/',
             'capacity' => 'required|integer|min:1|max:20',
             'description' => 'nullable|string|max:1000',
