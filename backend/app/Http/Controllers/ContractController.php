@@ -28,7 +28,9 @@ class ContractController extends Controller
             'tenant_id' => $c->tenant_id,
             'room' => $c->room->room_number ?? 'N/A',
             'startDate' => $c->start_date, 'endDate' => $c->end_date,
-            'rentAmount' => $c->rent_amount, 'status' => $c->status,
+            'rentAmount' => $c->rent_amount, 
+            'billingCycle' => $c->billing_cycle,
+            'status' => $c->status,
         ]);
 
         return $this->paginated($contracts);
@@ -44,7 +46,9 @@ class ContractController extends Controller
             'tenant' => $c->tenant ? ['id' => $c->tenant->id, 'name' => $c->tenant->name] : null,
             'room' => $c->room ? ['id' => $c->room->id, 'roomNumber' => $c->room->room_number] : null,
             'startDate' => $c->start_date, 'endDate' => $c->end_date,
-            'rentAmount' => $c->rent_amount, 'status' => $c->status,
+            'rentAmount' => $c->rent_amount, 
+            'billingCycle' => $c->billing_cycle,
+            'status' => $c->status,
             'terms' => $c->terms,
             'created_at' => $c->created_at,
         ]);
@@ -58,6 +62,7 @@ class ContractController extends Controller
             'startDate' => 'required|date',
             'endDate' => 'required|date|after:startDate',
             'rentAmount' => 'required|numeric|min:0',
+            'billingCycle' => 'sometimes|in:daily,monthly',
             'terms' => 'nullable|string',
             'status' => 'sometimes|in:active,draft,expired,terminated',
         ]);
@@ -65,7 +70,9 @@ class ContractController extends Controller
         $contract = Contract::create([
             'tenant_id' => $v['tenantId'], 'room_id' => $v['roomId'],
             'start_date' => $v['startDate'], 'end_date' => $v['endDate'],
-            'rent_amount' => $v['rentAmount'], 'status' => $v['status'] ?? 'draft',
+            'rent_amount' => $v['rentAmount'], 
+            'billing_cycle' => $v['billingCycle'] ?? 'monthly',
+            'status' => $v['status'] ?? 'draft',
             'terms' => $v['terms'] ?? null,
             'user_id' => $request->user()->id,
         ]);
@@ -82,6 +89,7 @@ class ContractController extends Controller
             'startDate' => 'sometimes|date',
             'endDate' => 'sometimes|date',
             'rentAmount' => 'sometimes|numeric|min:0',
+            'billingCycle' => 'sometimes|in:daily,monthly',
             'status' => 'sometimes|in:active,expired,terminated,draft',
             'terms' => 'nullable|string',
         ]);
@@ -90,6 +98,7 @@ class ContractController extends Controller
         if (isset($v['startDate'])) $data['start_date'] = $v['startDate'];
         if (isset($v['endDate'])) $data['end_date'] = $v['endDate'];
         if (isset($v['rentAmount'])) $data['rent_amount'] = $v['rentAmount'];
+        if (isset($v['billingCycle'])) $data['billing_cycle'] = $v['billingCycle'];
         if (isset($v['status'])) $data['status'] = $v['status'];
         if (array_key_exists('terms', $v)) $data['terms'] = $v['terms'];
 
@@ -172,6 +181,7 @@ class ContractController extends Controller
             'start_date' => $newStartDate->format('Y-m-d'),
             'end_date' => $newEndDate->format('Y-m-d'),
             'rent_amount' => $newRent,
+            'billing_cycle' => $oldContract->billing_cycle,
             'status' => 'active',
             'terms' => $v['terms'] ?? $oldContract->terms,
             'user_id' => $oldContract->user_id,

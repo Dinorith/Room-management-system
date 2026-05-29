@@ -8,6 +8,14 @@ import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
 import { api } from "../lib/api";
 
+const getStayDays = (invoice: any) => {
+  if (!invoice || !invoice.billingPeriodStart || !invoice.billingPeriodEnd) return 1;
+  const start = new Date(invoice.billingPeriodStart.substring(0, 10));
+  const end = new Date(invoice.billingPeriodEnd.substring(0, 10));
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+};
+
 export function Payments() {
   const [payments, setPayments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,7 +42,7 @@ export function Payments() {
   
   // New invoice state
   const [newPayment, setNewPayment] = useState({
-    tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending"
+    tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending", billingCycle: "monthly"
   });
   const [tenants, setTenants] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -67,7 +75,7 @@ export function Payments() {
 
         return {
           id: p.id,
-          invoiceId: `INV-${p.id.substring(0, 8).toUpperCase()}`,
+          invoiceId: p.invoiceNumber || p.invoice_number || `INV-${p.id.substring(0, 8).toUpperCase()}`,
           tenant: p.tenant || "Tenant",
           tenantId: p.tenantId || p.tenant_id,
           room: p.room || "101",
@@ -81,6 +89,7 @@ export function Payments() {
           status: p.status || "pending",
           paymentMethod: p.paymentMethod || p.payment_method || "qr_code",
           roomType: p.roomType || "Standard Suite",
+          billingCycle: p.billingCycle || 'monthly',
           property: p.property || {
             name: "RentFlow Property Group Ltd.",
             address: "Suite 500, 100 Innovation Way, Tech District",
@@ -94,7 +103,11 @@ export function Payments() {
           waterPrev,
           waterCurr: waterPrev + waterUsage,
           waterUsage,
-          transactionId: p.transactionId || `TXN-${p.id.substring(0, 10).toUpperCase()}`
+          transactionId: p.transactionId || `TXN-${p.id.substring(0, 10).toUpperCase()}`,
+          invoiceNumber: p.invoiceNumber || p.invoice_number || `INV-${p.id.substring(0, 8).toUpperCase()}`,
+          invoiceType: p.invoiceType || p.invoice_type,
+          billingPeriodStart: p.billingPeriodStart || p.billing_period_start,
+          billingPeriodEnd: p.billingPeriodEnd || p.billing_period_end,
         };
       });
       
@@ -148,17 +161,29 @@ export function Payments() {
     if (selectedTenant) {
       const roomNum = selectedTenant.room;
       const matchedRoom = rooms.find((r: any) => r.roomNumber === roomNum);
-      const rentAmount = matchedRoom ? matchedRoom.rent.toString() : "350";
+      let rentAmount = matchedRoom ? matchedRoom.rent : 350;
+      const billingCycle = matchedRoom?.roomType?.billingCycle || 'monthly';
+      
+      if (billingCycle === 'daily' && selectedTenant.moveInDate && selectedTenant.moveOutDate) {
+        const start = new Date(selectedTenant.moveInDate);
+        const end = new Date(selectedTenant.moveOutDate);
+        const diffTime = Math.abs(end.getTime() - start.getTime());
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+        rentAmount = rentAmount * days;
+      }
+      
       setNewPayment(prev => ({
         ...prev,
         tenantId,
-        amount: rentAmount
+        amount: rentAmount.toString(),
+        billingCycle: billingCycle,
       }));
     } else {
       setNewPayment(prev => ({
         ...prev,
         tenantId: "",
-        amount: ""
+        amount: "",
+        billingCycle: 'monthly',
       }));
     }
   };
@@ -178,7 +203,7 @@ export function Payments() {
       });
       setShowRecordModal(false);
       setNewPayment({
-        tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending"
+        tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending", billingCycle: "monthly"
       });
       fetchPayments();
     } catch (err: any) {
@@ -249,7 +274,7 @@ export function Payments() {
         <div className="flex gap-2">
           <Button icon={Plus} variant="primary" onClick={() => {
             setNewPayment({
-              tenantId: "", amount: "", month: getCurrentMonthString(), paymentMethod: "qr_code", status: "pending"
+              tenantId: "", amount: "", month: getCurrentMonthString(), paymentMethod: "qr_code", status: "pending", billingCycle: "monthly"
             });
             setShowRecordModal(true);
           }}>
@@ -373,7 +398,7 @@ export function Payments() {
                       className="hover:bg-muted/30 transition-colors cursor-pointer"
                     >
                       <td className="px-6 py-4 font-mono font-semibold text-foreground">
-                        {p.invoiceId}
+                        {p.invoiceNumber || p.invoiceId}
                       </td>
                       <td className="px-6 py-4 text-foreground">
                         {p.tenant}
@@ -451,7 +476,7 @@ export function Payments() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Monthly Rent ($) *</label>
+                <label className="text-sm text-muted-foreground mb-1 block">{(newPayment as any).billingCycle === 'daily' ? 'Daily Rent ($) *' : 'Monthly Rent ($) *'}</label>
                   <input 
                     type="number" 
                     placeholder="350" 
@@ -475,11 +500,34 @@ export function Payments() {
               {/* Live Calculations Summary */}
               {(() => {
                 const rentVal = parseFloat(newPayment.amount) || 0;
+                const selTenant = tenants.find((t: any) => t.id === newPayment.tenantId);
+                const matchedRoom = rooms.find((r: any) => r.roomNumber === selTenant?.room);
+                const dailyRate = parseFloat(matchedRoom ? matchedRoom.rent : 0);
+                
+                let days = 1;
+                if (newPayment.billingCycle === 'daily' && selTenant?.moveInDate && selTenant?.moveOutDate) {
+                  const start = new Date(selTenant.moveInDate);
+                  const end = new Date(selTenant.moveOutDate);
+                  const diffTime = Math.abs(end.getTime() - start.getTime());
+                  days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+                }
 
                 return (
                   <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-primary">Live Calculation Preview</h4>
                     <div className="space-y-1.5 text-xs text-foreground/80">
+                      {newPayment.billingCycle === 'daily' && selTenant && (
+                        <>
+                          <div className="flex justify-between">
+                            <span>Daily Rate:</span>
+                            <span className="font-semibold text-foreground">${dailyRate.toFixed(2)}/day</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Stay Duration:</span>
+                            <span className="font-semibold text-foreground">{days} {days === 1 ? 'day' : 'days'} ({selTenant.moveInDate} to {selTenant.moveOutDate})</span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between">
                         <span>Base Rent:</span>
                         <span className="font-semibold text-foreground">${rentVal.toFixed(2)}</span>
@@ -505,19 +553,19 @@ export function Payments() {
 
       {/* Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4 no-print-backdrop">
-          <div className="bg-card rounded-3xl border border-foreground/15 max-w-5xl w-full p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden printable-invoice border-t-8 border-t-primary">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-start justify-center z-50 p-4 md:p-6 no-print-backdrop overflow-y-auto">
+          <div className="bg-card rounded-3xl border border-foreground/15 max-w-5xl w-full p-4 sm:p-6 md:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-150 relative overflow-hidden printable-invoice border-t-8 border-t-primary my-auto">
             {/* Close Button - hidden in print */}
             <button 
               onClick={() => setSelectedInvoice(null)} 
-              className="absolute top-5 right-5 p-2 hover:bg-muted rounded-xl transition-colors no-print text-muted-foreground hover:text-foreground z-10 border border-foreground/5 hover:border-foreground/10"
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 hover:bg-muted rounded-xl transition-colors no-print text-muted-foreground hover:text-foreground z-10 border border-foreground/5 hover:border-foreground/10"
               title="Close Modal"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Premium Invoice Branding Header */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-foreground/10">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6 pb-6 border-b border-foreground/10 pr-10 md:pr-0">
               <div className="space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="bg-primary text-primary-foreground p-3 rounded-2xl shadow-brutal-sm border-2 border-foreground shrink-0">
@@ -542,7 +590,9 @@ export function Payments() {
               <div className="text-left md:text-right space-y-2 shrink-0 md:pt-2">
                 <h2 className="text-3xl font-black uppercase tracking-widest text-foreground">Invoice</h2>
                 <div className="space-y-2">
-                  <p className="font-mono font-bold text-xs text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl inline-block">{selectedInvoice.invoiceId}</p>
+                  <p className="font-mono font-bold text-xs text-primary bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-xl inline-block">
+                    {selectedInvoice.invoiceNumber || selectedInvoice.invoiceId}
+                  </p>
                   <div className="flex md:justify-end">
                     <span className={`print-badge inline-flex items-center px-4 py-1 rounded-full text-xs font-black tracking-widest uppercase border-2 shadow-sm ${
                       selectedInvoice.status === "paid" 
@@ -612,10 +662,18 @@ export function Payments() {
                               : "text-amber-600"
                         }`}>{selectedInvoice.dueDate}</p>
                       </div>
+                      {selectedInvoice.billingPeriodStart && selectedInvoice.billingPeriodEnd && (
+                        <div className="col-span-2 pt-1">
+                          <p className="text-[10px] font-bold text-muted-foreground uppercase">Lease Period</p>
+                          <p className="text-xs font-bold text-foreground mt-1">
+                            {selectedInvoice.billingPeriodStart.substring(0, 10)} – {selectedInvoice.billingPeriodEnd.substring(0, 10)}
+                          </p>
+                        </div>
+                      )}
                       <div className="col-span-2 pt-1">
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Reference & Method</p>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase">Invoice Type & Ref</p>
                         <p className="text-xs font-mono text-muted-foreground bg-card px-3 py-1.5 rounded-xl border border-foreground/5 inline-block mt-1">
-                          {selectedInvoice.paymentMethod.replace('_', ' ').toUpperCase()} · {selectedInvoice.transactionId}
+                          {selectedInvoice.invoiceType === 'daily_rental' ? 'DAILY CHECKOUT' : selectedInvoice.invoiceType === 'monthly_rent' ? 'MONTHLY RENT' : (selectedInvoice.invoiceType || 'RENTAL').toUpperCase()} · {selectedInvoice.paymentMethod?.replace('_', ' ')?.toUpperCase() || 'QR'}
                         </p>
                       </div>
                     </div>
@@ -627,35 +685,82 @@ export function Payments() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-muted/80 border-b border-foreground/10 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                        <th className="p-4 pl-6">Description</th>
-                        <th className="p-4 text-center">Billing Duration</th>
-                        <th className="p-4 pr-6 text-right">Amount</th>
+                        <th className="p-3 sm:p-4 pl-4 sm:pl-6">Description</th>
+                        <th className="p-3 sm:p-4 text-center">Billing Duration</th>
+                        <th className="p-3 sm:p-4 pr-4 sm:pr-6 text-right">Amount</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-foreground/5 text-sm">
                       {/* Rent Lease Row */}
-                      <tr className="hover:bg-muted/10 transition-colors">
-                        <td className="p-4 pl-6">
-                          <div className="font-bold text-foreground flex items-center gap-2">
-                            <Receipt className="w-4.5 h-4.5 text-primary shrink-0" /> Monthly Base Room Lease
-                          </div>
-                          <div className="text-xs text-muted-foreground mt-1">Standard lease fee for Room {selectedInvoice.room}</div>
-                        </td>
-                        <td className="p-4 text-center text-muted-foreground text-xs font-semibold">1 Month</td>
-                        <td className="p-4 pr-6 text-right font-black text-foreground text-base">${selectedInvoice.rent.toFixed(2)}</td>
-                      </tr>
+                      {(() => {
+                        const isDaily = selectedInvoice.billingCycle === 'daily';
+                        const days = isDaily ? getStayDays(selectedInvoice) : 1;
+                        const dailyRate = isDaily ? (selectedInvoice.rent / days) : selectedInvoice.rent;
+                        
+                        return (
+                          <tr className="hover:bg-muted/10 transition-colors">
+                            <td className="p-3 sm:p-4 pl-4 sm:pl-6">
+                              <div className="font-bold text-foreground flex items-center gap-2">
+                                <Receipt className="w-4.5 h-4.5 text-primary shrink-0" /> {isDaily ? 'Daily Room Stay' : 'Monthly Base Room Lease'}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {isDaily 
+                                  ? `Standard daily rate for Room ${selectedInvoice.room} ($${dailyRate.toFixed(2)}/day)`
+                                  : `Standard lease fee for Room ${selectedInvoice.room}`
+                                }
+                              </div>
+                            </td>
+                            <td className="p-3 sm:p-4 text-center text-muted-foreground text-xs font-semibold">
+                              {isDaily ? `${days} ${days === 1 ? 'Day' : 'Days'}` : '1 Month'}
+                            </td>
+                            <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-black text-foreground text-base">${selectedInvoice.rent.toFixed(2)}</td>
+                          </tr>
+                        );
+                      })()}
+
+                      {/* Electricity Row */}
+                      {selectedInvoice.utilityAmount > 0 && (
+                        <tr className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3 sm:p-4 pl-4 sm:pl-6">
+                            <div className="font-bold text-foreground flex items-center gap-2">
+                              <Zap className="w-4.5 h-4.5 text-amber-500 shrink-0" /> Electricity Usage
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {selectedInvoice.elecPrev} → {selectedInvoice.elecCurr} kWh ({selectedInvoice.elecUsage} kWh × $0.20)
+                            </div>
+                          </td>
+                          <td className="p-3 sm:p-4 text-center text-muted-foreground text-xs font-semibold">{selectedInvoice.elecUsage} kWh</td>
+                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${(selectedInvoice.utilityAmount * 0.7).toFixed(2)}</td>
+                        </tr>
+                      )}
+
+                      {/* Water Row */}
+                      {selectedInvoice.utilityAmount > 0 && (
+                        <tr className="hover:bg-muted/10 transition-colors">
+                          <td className="p-3 sm:p-4 pl-4 sm:pl-6">
+                            <div className="font-bold text-foreground flex items-center gap-2">
+                              <DollarSign className="w-4.5 h-4.5 text-blue-500 shrink-0" /> Water Usage
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {selectedInvoice.waterPrev} → {selectedInvoice.waterCurr} m³ ({selectedInvoice.waterUsage} m³ × $0.50)
+                            </div>
+                          </td>
+                          <td className="p-3 sm:p-4 text-center text-muted-foreground text-xs font-semibold">{selectedInvoice.waterUsage} m³</td>
+                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${(selectedInvoice.utilityAmount * 0.3).toFixed(2)}</td>
+                        </tr>
+                      )}
 
                       {/* Late penalty row */}
                       {selectedInvoice.lateFee > 0 && (
                         <tr className="bg-rose-500/5 hover:bg-rose-500/10 transition-colors border-l-4 border-l-rose-500">
-                          <td className="p-4 pl-6">
+                          <td className="p-3 sm:p-4 pl-4 sm:pl-6">
                             <div className="font-bold text-rose-600 flex items-center gap-1.5">
                               <AlertTriangle className="w-4.5 h-4.5 text-rose-500 shrink-0" /> Late Settlement Penalty
                             </div>
                             <div className="text-xs text-rose-500/80 mt-1">Applied for late invoice settlement</div>
                           </td>
-                          <td className="p-4 text-center text-rose-500/80 text-xs font-bold">Late Charge</td>
-                          <td className="p-4 pr-6 text-right font-black text-rose-600 text-base">${selectedInvoice.lateFee.toFixed(2)}</td>
+                          <td className="p-3 sm:p-4 text-center text-rose-500/80 text-xs font-bold">Late Charge</td>
+                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-black text-rose-600 text-base">${selectedInvoice.lateFee.toFixed(2)}</td>
                         </tr>
                       )}
                     </tbody>
@@ -711,9 +816,25 @@ export function Payments() {
                     <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Invoice Summary</h4>
                     <div className="space-y-3 text-xs text-muted-foreground flex flex-col">
                       <div className="flex justify-between font-semibold">
-                        <span>Monthly Base Lease:</span>
+                        <span>
+                          {selectedInvoice.billingCycle === 'daily' 
+                            ? `Daily Room Stay (${getStayDays(selectedInvoice)} ${getStayDays(selectedInvoice) === 1 ? 'day' : 'days'}):` 
+                            : 'Monthly Base Lease:'}
+                        </span>
                         <span className="text-foreground">${selectedInvoice.rent.toFixed(2)}</span>
                       </div>
+                      {selectedInvoice.utilityAmount > 0 && (
+                        <>
+                          <div className="flex justify-between font-semibold">
+                            <span>Electricity:</span>
+                            <span className="text-foreground">${(selectedInvoice.utilityAmount * 0.7).toFixed(2)}</span>
+                          </div>
+                          <div className="flex justify-between font-semibold">
+                            <span>Water:</span>
+                            <span className="text-foreground">${(selectedInvoice.utilityAmount * 0.3).toFixed(2)}</span>
+                          </div>
+                        </>
+                      )}
                       
                       {selectedInvoice.lateFee > 0 && (
                         <div className="flex justify-between font-semibold text-rose-500">
@@ -737,7 +858,7 @@ export function Payments() {
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 font-bold">
                     <ShieldCheck className="w-4 h-4 text-emerald-500" /> RentFlow Certified Billing Ledger
                   </div>
-                  <div className="flex flex-wrap items-center gap-2 no-print">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 no-print w-full sm:w-auto">
                     <Button 
                       variant="outline" 
                       icon={copiedInvoiceId === selectedInvoice.id ? CheckCircle : Link2} 

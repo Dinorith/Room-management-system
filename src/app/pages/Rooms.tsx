@@ -13,6 +13,7 @@ export function Rooms() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newRoom, setNewRoom] = useState({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
+  const [roomTypeFilter, setRoomTypeFilter] = useState<"monthly" | "daily">("monthly");
 
   const fetchRooms = async () => {
     try {
@@ -40,10 +41,13 @@ export function Rooms() {
   const handleRoomTypeChange = (roomTypeId: string) => {
     const selectedType = roomTypes.find((rt: any) => String(rt.id) === roomTypeId);
     if (selectedType) {
+      const defaultPrice = selectedType.billing_cycle === 'daily'
+        ? selectedType.base_daily_price
+        : selectedType.base_price;
       setNewRoom(prev => ({
         ...prev,
         roomTypeId,
-        rent: String(selectedType.base_price),
+        rent: String(defaultPrice),
         capacity: String(selectedType.capacity),
       }));
     } else {
@@ -87,7 +91,12 @@ export function Rooms() {
       setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
       fetchRooms();
     } catch (err: any) {
-      setError(err.message || "Failed to add room");
+      if (err.errors) {
+        const errorMsgs = Object.values(err.errors).flat().join(", ");
+        setError(errorMsgs || err.message || "Failed to add room");
+      } else {
+        setError(err.message || "Failed to add room");
+      }
     }
   };
 
@@ -159,7 +168,9 @@ export function Rooms() {
                 <tr key={room.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap"><span className="text-sm font-medium text-foreground">Room {room.roomNumber}</span></td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground capitalize">{room.roomType?.name || room.type}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">${room.rent}/month</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground">
+                    ${room.rent}/{room.roomType?.billingCycle === 'daily' || room.billingCycle === 'daily' ? 'day' : 'month'}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">{room.tenant || "—"}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge variant={room.status === "occupied" ? "success" : room.status === "maintenance" ? "warning" : "info"}>
@@ -187,7 +198,14 @@ export function Rooms() {
             <div className="space-y-3">
               <div><label className="text-sm text-muted-foreground">Room Number</label><p className="text-foreground font-medium">Room {selectedRoom.roomNumber}</p></div>
               <div><label className="text-sm text-muted-foreground">Type</label><p className="text-foreground font-medium capitalize">{selectedRoom.roomType?.name || selectedRoom.type}</p></div>
-              <div><label className="text-sm text-muted-foreground">Monthly Rent</label><p className="text-foreground font-medium">${selectedRoom.rent}/month</p></div>
+              <div>
+                <label className="text-sm text-muted-foreground">
+                  {selectedRoom.roomType?.billingCycle === 'daily' || selectedRoom.billingCycle === 'daily' ? 'Daily Rent' : 'Monthly Rent'}
+                </label>
+                <p className="text-foreground font-medium">
+                  ${selectedRoom.rent}/{selectedRoom.roomType?.billingCycle === 'daily' || selectedRoom.billingCycle === 'daily' ? 'day' : 'month'}
+                </p>
+              </div>
               <div><label className="text-sm text-muted-foreground">Capacity</label><p className="text-foreground font-medium">{selectedRoom.capacity} person(s)</p></div>
               <div><label className="text-sm text-muted-foreground">Tenant</label><p className="text-foreground font-medium">{selectedRoom.tenant?.name || "None"}</p></div>
               <div><label className="text-sm text-muted-foreground">Amenities</label>
@@ -220,20 +238,61 @@ export function Rooms() {
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Room Type</label>
+                <label className="text-sm text-muted-foreground mb-2 block">Room Type billing</label>
+                <div className="flex border border-foreground/10 rounded-2xl p-1 bg-muted/20 gap-1 mb-3 bg-background">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoomTypeFilter("monthly");
+                      setNewRoom(prev => ({ ...prev, roomTypeId: "", rent: "" }));
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                      roomTypeFilter === "monthly"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    By Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRoomTypeFilter("daily");
+                      setNewRoom(prev => ({ ...prev, roomTypeId: "", rent: "" }));
+                    }}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                      roomTypeFilter === "daily"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    By Day
+                  </button>
+                </div>
+
+                <label className="text-sm text-muted-foreground mb-1 block">Select Room Type *</label>
                 <select value={newRoom.roomTypeId} onChange={(e) => handleRoomTypeChange(e.target.value)}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
                   <option value="">— Select Room Type —</option>
-                  {roomTypes.map((rt: any) => (
-                    <option key={rt.id} value={rt.id}>{rt.name} (${parseFloat(rt.base_price).toFixed(2)}/mo)</option>
-                  ))}
+                  {roomTypes.filter((rt: any) => rt.billing_cycle === roomTypeFilter).map((rt: any) => {
+                    const priceText = rt.billing_cycle === 'daily'
+                      ? `$${parseFloat(rt.base_daily_price).toFixed(2)}/day`
+                      : `$${parseFloat(rt.base_price).toFixed(2)}/mo`;
+                    return (
+                      <option key={rt.id} value={rt.id}>
+                        {rt.name} ({priceText})
+                      </option>
+                    );
+                  })}
                 </select>
-                {roomTypes.length === 0 && (
-                  <p className="text-xs text-amber-600 mt-1">No room types found. Create room types in Settings first.</p>
+                {roomTypes.filter((rt: any) => rt.billing_cycle === roomTypeFilter).length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1">No {roomTypeFilter} room types found.</p>
                 )}
               </div>
               <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Monthly Rent ($) *</label>
+                <label className="text-sm text-muted-foreground mb-1 block">
+                  {roomTypeFilter === 'daily' ? "Daily Rent ($) *" : "Monthly Rent ($) *"}
+                </label>
                 <input type="number" placeholder="e.g., 350" value={newRoom.rent}
                   onChange={(e) => setNewRoom({ ...newRoom, rent: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />

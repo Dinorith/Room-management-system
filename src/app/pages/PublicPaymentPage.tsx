@@ -6,6 +6,14 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 
+const getStayDays = (payment: any) => {
+  if (!payment || !payment.billingPeriodStart || !payment.billingPeriodEnd) return 1;
+  const start = new Date(payment.billingPeriodStart.substring(0, 10));
+  const end = new Date(payment.billingPeriodEnd.substring(0, 10));
+  const diffTime = Math.abs(end.getTime() - start.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+};
+
 export function PublicPaymentPage() {
   const { paymentId } = useParams();
   const [payment, setPayment] = useState<any>(null);
@@ -180,7 +188,7 @@ export function PublicPaymentPage() {
                   <h3 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
                     <Receipt className="w-5 h-5 text-amber-500" /> Invoice Details
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Please review your lease details below</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Invoice Ref: <span className="font-mono font-bold text-slate-700">{payment.invoiceNumber || `INV-${payment.id.substring(0, 8).toUpperCase()}`}</span></p>
                 </div>
 
                 {/* Summary Card */}
@@ -203,18 +211,30 @@ export function PublicPaymentPage() {
                   {/* Line Items */}
                   <div className="space-y-3">
                     {/* Base Rent Row */}
-                    <div className="flex items-center justify-between text-xs font-semibold p-2.5 rounded-2xl bg-slate-50/60 border border-slate-100 hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-3">
-                        <div className="w-7.5 h-7.5 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-sm shrink-0">
-                          <Building2 className="w-4 h-4" />
+                    {(() => {
+                      const isDaily = payment.billingCycle === 'daily';
+                      const days = isDaily ? getStayDays(payment) : 1;
+                      const dailyRate = isDaily ? (parseFloat(payment.amount) / days) : parseFloat(payment.amount);
+                      
+                      return (
+                        <div className="flex items-center justify-between text-xs font-semibold p-2.5 rounded-2xl bg-slate-50/60 border border-slate-100 hover:bg-slate-50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className="w-7.5 h-7.5 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-sm shrink-0">
+                              <Building2 className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-slate-800 font-bold block">
+                                {isDaily ? `Daily Room Stay (${days} ${days === 1 ? 'day' : 'days'})` : 'Monthly Base Lease'}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {isDaily ? `Standard daily rate: $${dailyRate.toFixed(2)}/day` : 'Full room occupancy rental'}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="font-black text-slate-900">${payment.amount.toFixed(2)}</span>
                         </div>
-                        <div>
-                          <span className="text-slate-800 font-bold block">Monthly Base Lease</span>
-                          <span className="text-[10px] text-slate-400">Full room occupancy rental</span>
-                        </div>
-                      </div>
-                      <span className="font-black text-slate-900">${payment.amount.toFixed(2)}</span>
-                    </div>
+                      );
+                    })()}
                     
                     {utilityAmount > 0 && (
                       <>
@@ -453,7 +473,7 @@ export function PublicPaymentPage() {
                   <div className="relative mx-auto w-14 h-14 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center mb-3.5 shadow-sm">
                     <CheckCircle2 className="w-7 h-7 text-emerald-600" />
                   </div>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">Payment Successful</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-widest font-extrabold">Payment Successful for Invoice {payment.invoiceNumber || `INV-${payment.id.substring(0, 8).toUpperCase()}`}</p>
                   <p className="mt-1 text-2xl md:text-3xl font-black text-slate-900 font-mono">${payment.total.toFixed(2)}</p>
                   <p className="mt-2 text-[10px] text-emerald-700 font-bold tracking-wide bg-emerald-500/10 py-1 px-3.5 rounded-full inline-block border border-emerald-500/20">
                     Settle logged: {payment.paidDate || new Date().toISOString().split('T')[0]}
@@ -508,7 +528,11 @@ export function PublicPaymentPage() {
 
                   <div className="space-y-2.5 text-xs border-b border-slate-100 pb-3.5">
                     <div className="flex justify-between text-slate-500 font-medium">
-                      <span>Monthly Base Lease</span>
+                      <span>
+                        {payment.billingCycle === 'daily' 
+                          ? `Daily Room Stay (${getStayDays(payment)} ${getStayDays(payment) === 1 ? 'day' : 'days'})` 
+                          : 'Monthly Base Lease'}
+                      </span>
                       <span className="font-bold text-slate-900">${payment.amount.toFixed(2)}</span>
                     </div>
                     {utilityAmount > 0 && (

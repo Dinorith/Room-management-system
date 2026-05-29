@@ -11,8 +11,6 @@ export function Settings() {
   const [profile, setProfile] = useState({ name: "", email: "" });
   const [rates, setRates] = useState({ electricityRate: "0.20", waterRate: "0.50" });
   const [lateFee, setLateFee] = useState({ amount: "0", type: "fixed", gracePeriodDays: "5", invoiceDueDay: "1" });
-  const [telegram, setTelegram] = useState({ botToken: "", chatId: "", webhookUrl: "" });
-  const [telegramConfigured, setTelegramConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
   const [message, setMessage] = useState("");
@@ -22,7 +20,9 @@ export function Settings() {
   const [editingRoomTypeId, setEditingRoomTypeId] = useState<string | null>(null);
   const [roomTypeForm, setRoomTypeForm] = useState({
     name: "",
+    billingCycle: "monthly" as "daily" | "monthly" | "both",
     basePrice: "",
+    baseDailyPrice: "",
     capacity: "",
     description: "",
     status: true,
@@ -47,12 +47,6 @@ export function Settings() {
               invoiceDueDay: String(settingsRes.data.invoiceDueDay || 1),
             });
           }
-          setTelegram({
-            botToken: settingsRes.data.telegramBotToken || "",
-            chatId: settingsRes.data.telegramChatId || "",
-            webhookUrl: "",
-          });
-          setTelegramConfigured(!!settingsRes.data.telegramBotToken);
         }
         if (ratesRes?.data) {
           setRates({
@@ -121,53 +115,34 @@ export function Settings() {
     finally { setSaving(""); }
   };
 
-  const handleSaveTelegram = async () => {
-    setSaving("telegram");
-    setMessage("");
-    try {
-      await api.updateSettings({
-        telegramBotToken: telegram.botToken,
-        telegramChatId: telegram.chatId,
-      });
-      setTelegramConfigured(!!telegram.botToken);
-      setMessage("Telegram settings saved!");
-    } catch (err: any) { setMessage("Failed: " + (err.message || "Error")); }
-    finally { setSaving(""); }
-  };
-
-  const handleRegisterWebhook = async () => {
-    if (!telegram.webhookUrl) { setMessage("Please enter a webhook URL first."); return; }
-    setSaving("webhook");
-    setMessage("");
-    try {
-      const res = await api.telegramRegisterWebhook(telegram.webhookUrl);
-      setMessage(res.message || "Webhook registered!");
-    } catch (err: any) { setMessage("Failed: " + (err.message || "Error")); }
-    finally { setSaving(""); }
-  };
-
-  const handleTestTelegram = async () => {
-    setSaving("tgtest");
-    setMessage("");
-    try {
-      const res = await api.telegramTest();
-      setMessage(res.message || "Test message sent!");
-    } catch (err: any) { setMessage("Failed: " + (err.message || "Error")); }
-    finally { setSaving(""); }
-  };
 
   const validateRoomTypeForm = () => {
     const errors: Record<string, string> = {};
     if (!roomTypeForm.name.trim()) errors.name = "Room type name is required";
-    if (!roomTypeForm.basePrice || parseFloat(roomTypeForm.basePrice) < 0) errors.basePrice = "Valid price is required";
-    if (!roomTypeForm.capacity || parseInt(roomTypeForm.capacity) < 1 || parseInt(roomTypeForm.capacity) > 20) errors.capacity = "Capacity must be 1-20";
+    
+    if (roomTypeForm.billingCycle === "monthly") {
+      if (!roomTypeForm.basePrice || parseFloat(roomTypeForm.basePrice) < 0) {
+        errors.basePrice = "Valid monthly price is required";
+      }
+    }
+    
+    if (roomTypeForm.billingCycle === "daily") {
+      if (!roomTypeForm.baseDailyPrice || parseFloat(roomTypeForm.baseDailyPrice) < 0) {
+        errors.baseDailyPrice = "Valid daily price is required";
+      }
+    }
+
+    if (!roomTypeForm.capacity || parseInt(roomTypeForm.capacity) < 1 || parseInt(roomTypeForm.capacity) > 20) {
+      errors.capacity = "Capacity must be 1-20";
+    }
+    
     setRoomTypeErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleAddRoomType = () => {
     setEditingRoomTypeId(null);
-    setRoomTypeForm({ name: "", basePrice: "", capacity: "", description: "", status: true });
+    setRoomTypeForm({ name: "", billingCycle: "monthly", basePrice: "", baseDailyPrice: "", capacity: "", description: "", status: true });
     setRoomTypeErrors({});
     setShowRoomTypeForm(true);
   };
@@ -176,7 +151,9 @@ export function Settings() {
     setEditingRoomTypeId(roomType.id);
     setRoomTypeForm({
       name: roomType.name,
-      basePrice: String(roomType.base_price),
+      billingCycle: roomType.billing_cycle || "monthly",
+      basePrice: String(roomType.base_price || ""),
+      baseDailyPrice: String(roomType.base_daily_price || ""),
       capacity: String(roomType.capacity),
       description: roomType.description || "",
       status: roomType.status,
@@ -192,7 +169,13 @@ export function Settings() {
     try {
       const data = {
         name: roomTypeForm.name,
-        base_price: parseFloat(roomTypeForm.basePrice),
+        billing_cycle: roomTypeForm.billingCycle,
+        base_price: roomTypeForm.billingCycle === "monthly" 
+          ? parseFloat(roomTypeForm.basePrice) 
+          : 0,
+        base_daily_price: roomTypeForm.billingCycle === "daily" 
+          ? parseFloat(roomTypeForm.baseDailyPrice) 
+          : 0,
         capacity: parseInt(roomTypeForm.capacity),
         description: roomTypeForm.description,
         status: roomTypeForm.status,
@@ -205,7 +188,7 @@ export function Settings() {
         setMessage("Room type created successfully!");
       }
       setShowRoomTypeForm(false);
-      setRoomTypeForm({ name: "", basePrice: "", capacity: "", description: "", status: true });
+      setRoomTypeForm({ name: "", billingCycle: "monthly", basePrice: "", baseDailyPrice: "", capacity: "", description: "", status: true });
       setEditingRoomTypeId(null);
       
       // Refresh room types list
@@ -216,7 +199,12 @@ export function Settings() {
       }
     } catch (err: any) {
       console.error("Error saving room type:", err);
-      setMessage("Failed: " + (err.message || "Unknown error"));
+      if (err.errors) {
+        const errorMsgs = Object.values(err.errors).flat().join(", ");
+        setMessage("Failed: " + (errorMsgs || err.message || "Unknown error"));
+      } else {
+        setMessage("Failed: " + (err.message || "Unknown error"));
+      }
     } finally {
       setSaving("");
     }
@@ -483,17 +471,60 @@ export function Settings() {
                   {roomTypeErrors.name && <p className="text-xs text-red-600 mt-1">{roomTypeErrors.name}</p>}
                 </div>
                 <div>
-                  <label className="block text-sm text-muted-foreground mb-2">Base Monthly Price ($)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={roomTypeForm.basePrice}
-                    onChange={(e) => { setRoomTypeForm({ ...roomTypeForm, basePrice: e.target.value }); if (roomTypeErrors.basePrice) setRoomTypeErrors({ ...roomTypeErrors, basePrice: "" }); }}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${roomTypeErrors.basePrice ? "border-red-500" : "border-border"}`}
-                    placeholder="e.g., 500.00" />
-                  {roomTypeErrors.basePrice && <p className="text-xs text-red-600 mt-1">{roomTypeErrors.basePrice}</p>}
+                  <label className="block text-sm text-muted-foreground mb-2">Billing Cycle</label>
+                  <div className="flex border border-foreground/10 rounded-2xl p-1 bg-muted/20 gap-1 bg-background">
+                    <button
+                      type="button"
+                      onClick={() => setRoomTypeForm({ ...roomTypeForm, billingCycle: "monthly" })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                        roomTypeForm.billingCycle === "monthly"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      By Month
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRoomTypeForm({ ...roomTypeForm, billingCycle: "daily" })}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                        roomTypeForm.billingCycle === "daily"
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      By Day
+                    </button>
+                  </div>
                 </div>
+                {(roomTypeForm.billingCycle === "monthly" || roomTypeForm.billingCycle === "both") && (
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Base Monthly Price ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={roomTypeForm.basePrice}
+                      onChange={(e) => { setRoomTypeForm({ ...roomTypeForm, basePrice: e.target.value }); if (roomTypeErrors.basePrice) setRoomTypeErrors({ ...roomTypeErrors, basePrice: "" }); }}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${roomTypeErrors.basePrice ? "border-red-500" : "border-border"}`}
+                      placeholder="e.g., 500.00" />
+                    {roomTypeErrors.basePrice && <p className="text-xs text-red-600 mt-1">{roomTypeErrors.basePrice}</p>}
+                  </div>
+                )}
+                {(roomTypeForm.billingCycle === "daily" || roomTypeForm.billingCycle === "both") && (
+                  <div>
+                    <label className="block text-sm text-muted-foreground mb-2">Base Daily Price ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={roomTypeForm.baseDailyPrice}
+                      onChange={(e) => { setRoomTypeForm({ ...roomTypeForm, baseDailyPrice: e.target.value }); if (roomTypeErrors.baseDailyPrice) setRoomTypeErrors({ ...roomTypeErrors, baseDailyPrice: "" }); }}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary ${roomTypeErrors.baseDailyPrice ? "border-red-500" : "border-border"}`}
+                      placeholder="e.g., 25.00" />
+                    {roomTypeErrors.baseDailyPrice && <p className="text-xs text-red-600 mt-1">{roomTypeErrors.baseDailyPrice}</p>}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm text-muted-foreground mb-2">Capacity (1-20)</label>
                   <input
@@ -508,7 +539,7 @@ export function Settings() {
                 </div>
                 <div>
                   <label className="block text-sm text-muted-foreground mb-2">Status</label>
-                  <label className="flex items-center gap-2 cursor-pointer">
+                  <label className="flex items-center gap-2 cursor-pointer mt-3">
                     <input
                       type="checkbox"
                       checked={roomTypeForm.status}
@@ -548,9 +579,11 @@ export function Settings() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-foreground/10">
+                  <tr className="border-b border-foreground/10 text-xs">
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Name</th>
-                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Base Price</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Billing Cycles</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Monthly Rate</th>
+                    <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Daily Rate</th>
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Capacity</th>
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Status</th>
                     <th className="text-left py-3 px-4 font-semibold text-muted-foreground">Actions</th>
@@ -559,8 +592,28 @@ export function Settings() {
                 <tbody>
                   {roomTypes.map((rt: any) => (
                     <tr key={rt.id} className="border-b border-foreground/5 hover:bg-muted/50 transition-colors">
-                      <td className="py-3 px-4 font-medium text-foreground">{rt.name}</td>
-                      <td className="py-3 px-4 text-foreground">${parseFloat(rt.base_price).toFixed(2)}</td>
+                      <td className="py-3 px-4 font-semibold text-foreground">{rt.name}</td>
+                      <td className="py-3 px-4">
+                        <span className={`text-[10px] px-2 py-0.5 rounded-md border font-black uppercase tracking-wider ${
+                          rt.billing_cycle === 'both' 
+                            ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                            : rt.billing_cycle === 'daily' 
+                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                            : 'bg-purple-50 text-purple-700 border-purple-200'
+                        }`}>
+                          {rt.billing_cycle === 'both' ? 'Daily & Monthly' : rt.billing_cycle === 'daily' ? 'Daily Only' : 'Monthly Only'}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-foreground font-mono">
+                        {(rt.billing_cycle === 'monthly' || rt.billing_cycle === 'both') 
+                          ? `$${parseFloat(rt.base_price).toFixed(2)}` 
+                          : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-foreground font-mono">
+                        {(rt.billing_cycle === 'daily' || rt.billing_cycle === 'both') 
+                          ? `$${parseFloat(rt.base_daily_price).toFixed(2)}` 
+                          : '—'}
+                      </td>
                       <td className="py-3 px-4 text-foreground">{rt.capacity} person{rt.capacity > 1 ? "s" : ""}</td>
                       <td className="py-3 px-4">
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${rt.status ? "bg-green-50 text-green-700" : "bg-gray-50 text-gray-700"}`}>

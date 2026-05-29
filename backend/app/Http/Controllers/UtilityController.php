@@ -213,18 +213,54 @@ class UtilityController extends Controller
                     "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
             ]);
         } else {
-            // Generate a due date (e.g., 1st of the month or today)
-            $dueDate = now()->toDateString();
+            $contract = \App\Models\Contract::where('tenant_id', $tenant->id)
+                ->where('status', 'active')
+                ->first();
+            if (!$contract) {
+                $contract = \App\Models\Contract::where('tenant_id', $tenant->id)
+                    ->orderBy('created_at', 'desc')
+                    ->first();
+            }
+
+            $billingCycle = $room->roomType->billing_cycle ?? $contract?->billing_cycle ?? 'monthly';
+            $invoiceType = $billingCycle === 'daily' ? 'daily_rental' : 'monthly_rent';
+            $amount = $room->rent;
+
+            if ($billingCycle === 'daily') {
+                $billingPeriodStart = $contract?->start_date ? $contract->start_date->format('Y-m-d') : ($tenant->move_in_date ?? now()->format('Y-m-d'));
+                $billingPeriodEnd = $contract?->end_date ? $contract->end_date->format('Y-m-d') : ($tenant->move_out_date ?? now()->addDay()->format('Y-m-d'));
+                
+                $start = \Carbon\Carbon::parse($billingPeriodStart);
+                $end = \Carbon\Carbon::parse($billingPeriodEnd);
+                $days = max(1, $start->diffInDays($end));
+                $amount = $days * $room->rent;
+            } else {
+                $billingPeriodStart = now()->startOfMonth()->format('Y-m-d');
+                $billingPeriodEnd = now()->endOfMonth()->format('Y-m-d');
+            }
+
+            $settings = $this->scopeByOwner(Setting::query(), $request)->first() ?? Setting::first();
+            $dueDay = $settings->invoice_due_day ?? 1;
+            $defaultDate = now()->startOfMonth()->day($dueDay);
+            if ($defaultDate->lt(now()->startOfDay())) {
+                $dueDate = now()->addDays($settings->grace_period_days ?? 5)->format('Y-m-d');
+            } else {
+                $dueDate = $defaultDate->format('Y-m-d');
+            }
+
             $payment = Payment::create([
                 'user_id' => $request->user()->id,
                 'tenant_id' => $tenant->id,
                 'room_id' => $room->id,
-                'amount' => $room->rent,
+                'amount' => $amount,
                 'utility_amount' => $utilityTotal,
                 'late_fee' => 0,
                 'due_date' => $dueDate,
                 'status' => 'pending',
                 'month' => $utility->month,
+                'invoice_type' => $invoiceType,
+                'billing_period_start' => $billingPeriodStart,
+                'billing_period_end' => $billingPeriodEnd,
                 'notes' => "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
             ]);
         }

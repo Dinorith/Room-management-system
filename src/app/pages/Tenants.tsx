@@ -1,8 +1,18 @@
-import { Plus, Eye, Trash2, Pencil } from "lucide-react";
+import { Plus, Eye, Trash2, Pencil, CalendarDays, CalendarRange } from "lucide-react";
 import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
+
+const calculateOneMonthLater = (dateStr: string) => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const targetDate = new Date(year, month - 1 + 1, day);
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const rDay = String(targetDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${rDay}`;
+};
 
 export function Tenants() {
   const [tenants, setTenants] = useState<any[]>([]);
@@ -12,12 +22,70 @@ export function Tenants() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [newTenant, setNewTenant] = useState({
-    name: "", phone: "", room: "", moveInDate: "", email: ""
+    name: "", phone: "", room: "", moveInDate: "", moveOutDate: "", email: ""
   });
   const [editTenant, setEditTenant] = useState<any>(null);
   const [vacantRooms, setVacantRooms] = useState<any[]>([]);
   const [allRooms, setAllRooms] = useState<any[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(false);
+  const [addRentalTab, setAddRentalTab] = useState<'daily' | 'monthly'>('monthly');
+  const [editRentalTab, setEditRentalTab] = useState<'daily' | 'monthly'>('monthly');
+
+  const handleAddRoomSelect = (roomNumber: string) => {
+    setNewTenant(prev => {
+      let moveOutDate = prev.moveOutDate;
+      if (addRentalTab === 'monthly') {
+        moveOutDate = prev.moveInDate ? calculateOneMonthLater(prev.moveInDate) : "";
+      }
+      return {
+        ...prev,
+        room: roomNumber,
+        moveOutDate: moveOutDate
+      };
+    });
+  };
+
+  const handleAddMoveInDateChange = (dateVal: string) => {
+    setNewTenant(prev => {
+      let moveOutDate = prev.moveOutDate;
+      if (addRentalTab === 'monthly') {
+        moveOutDate = calculateOneMonthLater(dateVal);
+      }
+      return {
+        ...prev,
+        moveInDate: dateVal,
+        moveOutDate: moveOutDate
+      };
+    });
+  };
+
+  const handleEditRoomSelect = (roomNumber: string) => {
+    setEditTenant((prev: any) => {
+      let moveOutDate = prev.moveOutDate;
+      if (editRentalTab === 'monthly') {
+        moveOutDate = prev.moveInDate ? calculateOneMonthLater(prev.moveInDate) : "";
+      }
+      return {
+        ...prev,
+        room: roomNumber,
+        moveOutDate: moveOutDate
+      };
+    });
+  };
+
+  const handleEditMoveInDateChange = (dateVal: string) => {
+    setEditTenant((prev: any) => {
+      let moveOutDate = prev.moveOutDate;
+      if (editRentalTab === 'monthly') {
+        moveOutDate = calculateOneMonthLater(dateVal);
+      }
+      return {
+        ...prev,
+        moveInDate: dateVal,
+        moveOutDate: moveOutDate
+      };
+    });
+  };
 
   const fetchTenants = async () => {
     try {
@@ -46,7 +114,7 @@ export function Tenants() {
     try {
       await api.createTenant(newTenant);
       setShowAddTenant(false);
-      setNewTenant({ name: "", phone: "", room: "", moveInDate: "", email: "" });
+      setNewTenant({ name: "", phone: "", room: "", moveInDate: "", moveOutDate: "", email: "" });
       fetchTenants();
     } catch (err: any) {
       setError(err.message || "Failed to add tenant");
@@ -140,8 +208,10 @@ export function Tenants() {
             phone: "",
             room: "",
             moveInDate: new Date().toISOString().split("T")[0],
+            moveOutDate: "",
             email: ""
           });
+          setAddRentalTab('monthly');
           setShowAddTenant(true);
           fetchRooms();
         }}>
@@ -253,31 +323,93 @@ export function Tenants() {
                   onChange={(e) => setNewTenant({ ...newTenant, email: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
+              {/* Rental Type Tabs */}
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">Rental Type *</label>
+                <div className="flex rounded-xl bg-muted/60 p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setAddRentalTab('daily'); setNewTenant(prev => ({ ...prev, room: '', moveOutDate: '' })); }}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      addRentalTab === 'daily'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    By Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setAddRentalTab('monthly'); setNewTenant(prev => ({ ...prev, room: '', moveOutDate: prev.moveInDate ? calculateOneMonthLater(prev.moveInDate) : '' })); }}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      addRentalTab === 'monthly'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <CalendarRange className="w-4 h-4" />
+                    By Month
+                  </button>
+                </div>
+              </div>
+
+              {/* Room Select - filtered by tab */}
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Room Number *</label>
                 {loadingRooms ? (
                   <div className="w-full px-3 py-2 border border-border rounded-lg bg-background text-muted-foreground text-sm">Loading rooms...</div>
-                ) : vacantRooms.length === 0 ? (
-                  <div className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-orange-50 text-orange-700 text-sm">No vacant rooms available</div>
-                ) : (
-                  <select value={newTenant.room}
-                    onChange={(e) => setNewTenant({ ...newTenant, room: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
-                    <option value="">Select a vacant room...</option>
-                    {vacantRooms.map((room: any) => (
-                      <option key={room.id} value={room.roomNumber}>
-                        Room {room.roomNumber} (${room.rent}/mo)
-                      </option>
-                    ))}
-                  </select>
-                )}
+                ) : (() => {
+                  const filtered = vacantRooms.filter((r: any) => r.roomType?.billingCycle === addRentalTab);
+                  return filtered.length === 0 ? (
+                    <div className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-orange-50 text-orange-700 text-sm">
+                      No vacant {addRentalTab === 'daily' ? 'daily' : 'monthly'} rooms available
+                    </div>
+                  ) : (
+                    <select value={newTenant.room}
+                      onChange={(e) => handleAddRoomSelect(e.target.value)}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
+                      <option value="">Select a vacant room...</option>
+                      {filtered.map((room: any) => (
+                        <option key={room.id} value={room.roomNumber}>
+                          Room {room.roomNumber} — ${room.rent}/{addRentalTab === 'daily' ? 'day' : 'mo'}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Move-in Date</label>
-                <input type="date" value={newTenant.moveInDate}
-                  onChange={(e) => setNewTenant({ ...newTenant, moveInDate: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
+
+              {/* Date inputs based on tab */}
+              {addRentalTab === 'daily' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Check-in Date *</label>
+                    <input type="date" value={newTenant.moveInDate}
+                      onChange={(e) => setNewTenant({ ...newTenant, moveInDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Check-out Date *</label>
+                    <input type="date" value={newTenant.moveOutDate}
+                      onChange={(e) => setNewTenant({ ...newTenant, moveOutDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Check-in Date *</label>
+                  <input type="date" value={newTenant.moveInDate}
+                    onChange={(e) => handleAddMoveInDateChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  {newTenant.moveInDate && (
+                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                      <CalendarRange className="w-3.5 h-3.5" />
+                      Check-out auto-set to <span className="font-semibold text-foreground">{new Date(calculateOneMonthLater(newTenant.moveInDate)).toLocaleDateString()}</span>
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => { setShowAddTenant(false); setError(""); }}>Cancel</Button>
@@ -314,24 +446,58 @@ export function Tenants() {
                   onChange={(e) => setEditTenant({ ...editTenant, email: e.target.value })}
                   className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
+              {/* Rental Type Tabs */}
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">Rental Type</label>
+                <div className="flex rounded-xl bg-muted/60 p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => { setEditRentalTab('daily'); setEditTenant((prev: any) => ({ ...prev, room: prev.room, moveOutDate: prev.moveOutDate })); }}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      editRentalTab === 'daily'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    By Day
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditRentalTab('monthly'); setEditTenant((prev: any) => ({ ...prev, room: prev.room, moveOutDate: prev.moveInDate ? calculateOneMonthLater(prev.moveInDate) : '' })); }}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      editRentalTab === 'monthly'
+                        ? 'bg-primary text-primary-foreground shadow-md'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }`}
+                  >
+                    <CalendarRange className="w-4 h-4" />
+                    By Month
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm text-muted-foreground mb-1 block">Room</label>
                   {loadingRooms ? (
                     <div className="w-full px-3 py-2 border border-border rounded-lg text-muted-foreground text-sm">Loading...</div>
-                  ) : (
-                    <select value={editTenant.room}
-                      onChange={(e) => setEditTenant({ ...editTenant, room: e.target.value })}
-                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
-                      <option value="">No room</option>
-                      {getEditRoomOptions().map((room: any) => (
-                        <option key={room.id} value={room.roomNumber}>
-                          Room {room.roomNumber}
-                          {room.roomNumber === editTenant.room ? " ← current" : ""}
-                        </option>
-                      ))}
-                    </select>
-                  )}
+                  ) : (() => {
+                    const editOptions = getEditRoomOptions().filter((r: any) => r.roomType?.billingCycle === editRentalTab || r.roomNumber === editTenant.room);
+                    return (
+                      <select value={editTenant.room}
+                        onChange={(e) => handleEditRoomSelect(e.target.value)}
+                        className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary">
+                        <option value="">No room</option>
+                        {editOptions.map((room: any) => (
+                          <option key={room.id} value={room.roomNumber}>
+                            Room {room.roomNumber} — ${room.rent}/{room.roomType?.billingCycle === 'daily' ? 'day' : 'mo'}
+                            {room.roomNumber === editTenant.room ? " ← current" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    );
+                  })()}
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground mb-1 block">Status</label>
@@ -343,20 +509,37 @@ export function Tenants() {
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              {/* Date inputs based on tab */}
+              {editRentalTab === 'daily' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Check-in Date</label>
+                    <input type="date" value={editTenant.moveInDate}
+                      onChange={(e) => setEditTenant({ ...editTenant, moveInDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-1 block">Check-out Date</label>
+                    <input type="date" value={editTenant.moveOutDate || ""}
+                      onChange={(e) => setEditTenant({ ...editTenant, moveOutDate: e.target.value })}
+                      className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  </div>
+                </div>
+              ) : (
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Move-in Date</label>
+                  <label className="text-sm text-muted-foreground mb-1 block">Check-in Date</label>
                   <input type="date" value={editTenant.moveInDate}
-                    onChange={(e) => setEditTenant({ ...editTenant, moveInDate: e.target.value })}
+                    onChange={(e) => handleEditMoveInDateChange(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  {editTenant.moveInDate && (
+                    <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                      <CalendarRange className="w-3.5 h-3.5" />
+                      Check-out auto-set to <span className="font-semibold text-foreground">{new Date(calculateOneMonthLater(editTenant.moveInDate)).toLocaleDateString()}</span>
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Move-out Date</label>
-                  <input type="date" value={editTenant.moveOutDate}
-                    onChange={(e) => setEditTenant({ ...editTenant, moveOutDate: e.target.value })}
-                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-                </div>
-              </div>
+              )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
               <Button variant="outline" onClick={() => { setShowEditTenant(false); setEditTenant(null); setError(""); }}>Cancel</Button>

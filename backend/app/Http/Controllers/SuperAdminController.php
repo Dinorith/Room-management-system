@@ -80,7 +80,7 @@ class SuperAdminController extends Controller
             ->get()
             ->map(fn($p) => [
                 'id' => $p->id,
-                'invoiceId' => 'INV-' . strtoupper(substr($p->id, 0, 8)),
+                'invoiceId' => $p->invoice_number ?? ('INV-' . strtoupper(substr($p->id, 0, 8))),
                 'owner' => $p->owner->name ?? 'N/A',
                 'tenant' => $p->tenant->name ?? 'N/A',
                 'amount' => $p->amount,
@@ -484,7 +484,7 @@ class SuperAdminController extends Controller
             $settings = $settingsMap->get($p->user_id);
             return [
                 'id' => $p->id,
-                'invoiceId' => 'INV-' . strtoupper(substr($p->id, 0, 8)),
+                'invoiceId' => $p->invoice_number ?? ('INV-' . strtoupper(substr($p->id, 0, 8))),
                 'tenant' => $p->tenant->name ?? 'N/A',
                 'room' => $p->room->room_number ?? 'N/A',
                 'roomType' => $p->room->roomType->name ?? $p->room->type ?? 'Standard Suite',

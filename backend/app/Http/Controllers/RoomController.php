@@ -6,6 +6,7 @@ use App\Models\Room;
 use App\Models\RoomType;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class RoomController extends Controller
 {
@@ -44,7 +45,9 @@ class RoomController extends Controller
             'roomType' => $room->roomType ? [
                 'id' => $room->roomType->id,
                 'name' => $room->roomType->name,
+                'billingCycle' => $room->roomType->billing_cycle,
                 'basePrice' => $room->roomType->base_price,
+                'baseDailyPrice' => $room->roomType->base_daily_price,
                 'capacity' => $room->roomType->capacity,
             ] : null,
         ]);
@@ -69,7 +72,9 @@ class RoomController extends Controller
             'roomType' => $room->roomType ? [
                 'id' => $room->roomType->id,
                 'name' => $room->roomType->name,
+                'billingCycle' => $room->roomType->billing_cycle,
                 'basePrice' => $room->roomType->base_price,
+                'baseDailyPrice' => $room->roomType->base_daily_price,
                 'capacity' => $room->roomType->capacity,
                 'description' => $room->roomType->description,
                 'status' => $room->roomType->status,
@@ -81,8 +86,15 @@ class RoomController extends Controller
 
     public function store(Request $request): JsonResponse
     {
+        $user = $request->user();
         $v = $request->validate([
-            'roomNumber' => 'required|string|unique:rooms,room_number',
+            'roomNumber' => [
+                'required',
+                'string',
+                Rule::unique('rooms', 'room_number')->where(function ($query) use ($user) {
+                    return $query->where('user_id', $user ? $user->id : null);
+                }),
+            ],
             'type' => 'sometimes|string|max:100',
             'rent' => 'required|numeric|min:0',
             'capacity' => 'sometimes|integer|min:1',
@@ -104,8 +116,8 @@ class RoomController extends Controller
             $roomType = RoomType::find($v['roomTypeId']);
             if ($roomType) {
                 $data['room_type_id'] = $roomType->id;
-                $data['rent'] = $roomType->base_price;
-                $data['capacity'] = $roomType->capacity;
+                $data['rent'] = $v['rent'] ?? ($roomType->billing_cycle === 'daily' ? $roomType->base_daily_price : $roomType->base_price);
+                $data['capacity'] = $v['capacity'] ?? $roomType->capacity;
             }
         }
 
@@ -123,8 +135,17 @@ class RoomController extends Controller
         $room = $this->scopeByOwner(Room::query(), $request)->find($id);
         if (!$room) return $this->error('Room not found', 'not_found', null, 404);
 
+        $user = $request->user();
         $v = $request->validate([
-            'roomNumber' => 'sometimes|string|unique:rooms,room_number,' . $id,
+            'roomNumber' => [
+                'sometimes',
+                'string',
+                Rule::unique('rooms', 'room_number')
+                    ->ignore($id)
+                    ->where(function ($query) use ($user) {
+                        return $query->where('user_id', $user ? $user->id : null);
+                    }),
+            ],
             'type' => 'sometimes|string|max:100',
             'rent' => 'sometimes|numeric|min:0',
             'capacity' => 'sometimes|integer|min:1',
@@ -148,7 +169,7 @@ class RoomController extends Controller
                 $data['room_type_id'] = $roomType->id;
                 // Optionally update pricing based on room type
                 if (!isset($v['rent'])) {
-                    $data['rent'] = $roomType->base_price;
+                    $data['rent'] = $roomType->billing_cycle === 'daily' ? $roomType->base_daily_price : $roomType->base_price;
                 }
                 if (!isset($v['capacity'])) {
                     $data['capacity'] = $roomType->capacity;

@@ -153,7 +153,6 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated', 'ensure-active'])->
     Route::post('/notifications/mark-read/{id}', [NotificationController::class, 'markRead']);
     Route::delete('/notifications/{id}', [NotificationController::class, 'destroy']);
     Route::post('/notifications/send-sms', [NotificationController::class, 'sendSms']);
-    Route::post('/telegram/broadcast', [NotificationController::class, 'telegramBroadcast']);
 
     // File Upload (stricter rate limit)
     Route::middleware('throttle:uploads')->post('/files/upload', [FileController::class, 'upload']);

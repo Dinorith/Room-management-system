@@ -5,7 +5,9 @@ const API_BASE_URL = '/room-types';
 export interface RoomType {
   id: string;
   name: string;
+  billing_cycle: 'daily' | 'monthly' | 'both';
   base_price: number;
+  base_daily_price: number;
   capacity: number;
   description?: string;
   status: boolean;
@@ -25,7 +27,9 @@ export interface RoomTypeFilters {
 
 export interface RoomTypeCreateInput {
   name: string;
+  billing_cycle: 'daily' | 'monthly' | 'both';
   base_price: number;
+  base_daily_price: number;
   capacity: number;
   description?: string;
   status?: boolean;

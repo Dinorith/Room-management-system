@@ -19,6 +19,7 @@ class StoreTenantRequest extends FormRequest
             'phone' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:255',
             'moveInDate' => 'nullable|date',
+            'moveOutDate' => 'nullable|date',
             'idNumber' => 'nullable|string|max:100',
             'emergencyContact' => 'nullable|string|max:255',
         ];

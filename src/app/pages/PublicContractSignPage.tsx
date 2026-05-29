@@ -283,11 +283,15 @@ export function PublicContractSignPage() {
                   <div className="h-px bg-slate-100 my-2" />
 
                   <div className="flex items-center justify-between p-4 bg-amber-50/50 border border-amber-200/60 rounded-2xl">
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-800">Monthly Rent Amount</span>
-                    <span className="text-2xl font-black tracking-tight text-amber-600 font-mono">${contract.rentAmount}/mo</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
+                      {contract.billingCycle === 'daily' ? 'Daily Stay Rate' : 'Monthly Rent Amount'}
+                    </span>
+                    <span className="text-2xl font-black tracking-tight text-amber-600 font-mono">
+                      ${contract.rentAmount}/{contract.billingCycle === 'daily' ? 'day' : 'mo'}
+                    </span>
                   </div>
                 </div>
-
+ 
                 {/* Audit lock disclaimer */}
                 <div className="rounded-2xl bg-slate-50 p-4 border border-slate-200/80 flex items-start gap-3">
                   <Lock className="w-4 h-4 text-slate-550 shrink-0 mt-0.5" />
@@ -299,7 +303,7 @@ export function PublicContractSignPage() {
                   </div>
                 </div>
               </div>
-
+ 
               {/* Right Column - Lease Terms, Sign area (7 Cols) */}
               <div className="md:col-span-7 space-y-5">
                 <div>
@@ -308,13 +312,14 @@ export function PublicContractSignPage() {
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">Read terms thoroughly and apply signature below</p>
                 </div>
-
+ 
                 {/* Scrollable Contract Terms */}
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/40 p-4 h-48 overflow-y-auto space-y-3 shadow-inner text-xs text-slate-650 leading-relaxed font-medium">
                   <h4 className="font-extrabold text-slate-800 uppercase tracking-wide text-[10px]">SECTION 1: OCCUPANCY & RENT</h4>
                   <p>
                     The Tenant (Lessee) agrees to lease Room {contract.roomNumber} from the Landlord (Lessor) at Sunrise Apartments. 
-                    The monthly rent is strictly ${contract.rentAmount} USD, payable on or before the 1st day of each calendar month. 
+                    The {contract.billingCycle === 'daily' ? 'daily rate' : 'monthly rent'} is strictly ${contract.rentAmount} USD, 
+                    payable {contract.billingCycle === 'daily' ? 'for the stay duration' : 'on or before the 1st day of each calendar month'}. 
                     Late payments are subject to a grace period and late fee penalty as designated by the management guidelines.
                   </p>
                   <h4 className="font-extrabold text-slate-800 uppercase tracking-wide text-[10px]">SECTION 2: DURATION & TERMINATION</h4>
@@ -524,8 +529,8 @@ export function PublicContractSignPage() {
                       <span className="font-bold text-slate-900">{contract.endDate}</span>
                     </div>
                     <div className="flex justify-between text-slate-500 font-medium">
-                      <span>Monthly Rental Rate</span>
-                      <span className="font-bold text-slate-900">${contract.rentAmount}/mo</span>
+                      <span>{contract.billingCycle === 'daily' ? 'Daily Stay Rate' : 'Monthly Rental Rate'}</span>
+                      <span className="font-bold text-slate-900">${contract.rentAmount}/{contract.billingCycle === 'daily' ? 'day' : 'mo'}</span>
                     </div>
                   </div>
 

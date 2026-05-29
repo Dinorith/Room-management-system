@@ -127,6 +127,7 @@ class TenantController extends Controller
             'phone' => $validated['phone'] ?? null,
             'email' => $validated['email'] ?? null,
             'move_in_date' => $validated['moveInDate'] ?? null,
+            'move_out_date' => $validated['moveOutDate'] ?? null,
             'id_number' => $validated['idNumber'] ?? null,
             'emergency_contact' => $validated['emergencyContact'] ?? null,
             'status' => 'active',
@@ -140,8 +141,18 @@ class TenantController extends Controller
 
         // Auto-create draft contract when tenant is assigned to a room
         if ($room && $roomId) {
+            $billingCycle = $room->roomType->billing_cycle ?? 'monthly';
             $startDate = $validated['moveInDate'] ?? now()->format('Y-m-d');
-            $endDate = \Carbon\Carbon::parse($startDate)->addYear()->format('Y-m-d');
+            
+            if (!empty($validated['moveOutDate'])) {
+                $endDate = $validated['moveOutDate'];
+            } else {
+                if ($billingCycle === 'daily') {
+                    $endDate = \Carbon\Carbon::parse($startDate)->addDay()->format('Y-m-d');
+                } else {
+                    $endDate = \Carbon\Carbon::parse($startDate)->addMonth()->format('Y-m-d');
+                }
+            }
 
             \App\Models\Contract::create([
                 'tenant_id' => $tenant->id,
@@ -149,6 +160,7 @@ class TenantController extends Controller
                 'start_date' => $startDate,
                 'end_date' => $endDate,
                 'rent_amount' => $room->rent ?? 0,
+                'billing_cycle' => $billingCycle,
                 'status' => 'draft',
                 'terms' => 'Auto-generated draft contract. Please review and activate.',
                 'user_id' => $request->user()->id,

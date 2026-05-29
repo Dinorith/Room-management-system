@@ -12,7 +12,9 @@ class RoomType extends Model
 
     protected $fillable = [
         'name',
+        'billing_cycle',
         'base_price',
+        'base_daily_price',
         'capacity',
         'description',
         'status',
@@ -25,7 +27,9 @@ class RoomType extends Model
     }
 
     protected $casts = [
+        'billing_cycle' => 'string',
         'base_price' => 'decimal:2',
+        'base_daily_price' => 'decimal:2',
         'capacity' => 'integer',
         'status' => 'boolean',
         'created_at' => 'datetime',

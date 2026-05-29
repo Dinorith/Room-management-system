@@ -167,7 +167,9 @@ class RoomTypeController extends Controller
                 return [
                     'id' => $roomType->id,
                     'name' => $roomType->name,
+                    'billing_cycle' => $roomType->billing_cycle,
                     'base_price' => $roomType->base_price,
+                    'base_daily_price' => $roomType->base_daily_price,
                     'capacity' => $roomType->capacity,
                     'room_count' => $roomType->rooms_count,
                     'total_potential_revenue' => $roomType->base_price * $roomType->rooms_count,

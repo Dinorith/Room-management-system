@@ -4,8 +4,19 @@ import { Button } from "../components/Button";
 import { useState, useEffect } from "react";
 import { api } from "../lib/api";
 
+const calculateOneMonthLater = (dateStr: string) => {
+  if (!dateStr) return "";
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const targetDate = new Date(year, month - 1 + 1, day);
+  const y = targetDate.getFullYear();
+  const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+  const rDay = String(targetDate.getDate()).padStart(2, '0');
+  return `${y}-${m}-${rDay}`;
+};
+
 export function Contracts() {
   const [contracts, setContracts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<"all" | "monthly" | "daily">("all");
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -17,6 +28,7 @@ export function Contracts() {
     startDate: "", 
     endDate: "", 
     rentAmount: "", 
+    billingCycle: "monthly",
     terms: "",
     status: "draft" // default to web-based draft signature
   });
@@ -101,18 +113,117 @@ export function Contracts() {
     };
   };
 
+  const getSelectedRoomTypeCycle = () => {
+    if (!newContract.tenantId) return 'both';
+    const selectedTenant = tenants.find((t: any) => t.id === newContract.tenantId);
+    if (!selectedTenant) return 'both';
+    const roomNum = selectedTenant.room;
+    const matchedRoom = rooms.find((r: any) => r.roomNumber === roomNum);
+    return matchedRoom?.roomType?.billingCycle || 'both';
+  };
+
+  const handleStartDateChange = (dateVal: string) => {
+    setNewContract(prev => {
+      const newEndDate = prev.billingCycle === 'monthly'
+        ? calculateOneMonthLater(dateVal)
+        : prev.endDate;
+      return {
+        ...prev,
+        startDate: dateVal,
+        endDate: newEndDate
+      };
+    });
+  };
+
+  const getDurationText = (c: any) => {
+    const start = new Date(c.startDate);
+    const end = new Date(c.endDate);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return "N/A";
+    if (c.billingCycle === 'daily') {
+      const diffTime = Math.abs(end.getTime() - start.getTime());
+      const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+      return `${diffDays} Day${diffDays > 1 ? 's' : ''}`;
+    } else {
+      const diffMonths = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+      return `${diffMonths} Month${diffMonths > 1 ? 's' : ''}`;
+    }
+  };
+
+  const handleBillingCycleChange = (cycle: string) => {
+    setNewContract(prev => {
+      let amount = prev.rentAmount;
+      if (prev.tenantId) {
+        const selectedTenant = tenants.find((t: any) => t.id === prev.tenantId);
+        if (selectedTenant) {
+          const roomNum = selectedTenant.room;
+          const matchedRoom = rooms.find((r: any) => r.roomNumber === roomNum);
+          if (matchedRoom) {
+            const rt = matchedRoom.roomType;
+            if (rt) {
+              if (cycle === 'daily') {
+                amount = rt.baseDailyPrice ? rt.baseDailyPrice.toString() : (parseFloat(matchedRoom.rent) / 30).toFixed(2);
+              } else {
+                amount = rt.basePrice ? rt.basePrice.toString() : matchedRoom.rent.toString();
+              }
+            } else {
+              amount = cycle === 'daily' 
+                ? (parseFloat(matchedRoom.rent) / 30).toFixed(2) 
+                : matchedRoom.rent.toString();
+            }
+          }
+        }
+      }
+      const resolvedEndDate = cycle === 'monthly' && prev.startDate
+        ? calculateOneMonthLater(prev.startDate)
+        : prev.endDate;
+      return {
+        ...prev,
+        billingCycle: cycle,
+        rentAmount: amount,
+        endDate: resolvedEndDate
+      };
+    });
+  };
+
   const handleTenantSelect = (tenantId: string) => {
     const selectedTenant = tenants.find((t: any) => t.id === tenantId);
     if (selectedTenant) {
       const roomNum = selectedTenant.room;
       const matchedRoom = rooms.find((r: any) => r.roomNumber === roomNum);
-      const rentAmount = matchedRoom ? matchedRoom.rent.toString() : "350";
+      
+      let rentAmount = "350";
+      let cycle = newContract.billingCycle;
+      
+      if (matchedRoom) {
+        const rt = matchedRoom.roomType;
+        if (rt) {
+          if (rt.billingCycle === 'daily') {
+            cycle = 'daily';
+            rentAmount = rt.baseDailyPrice ? rt.baseDailyPrice.toString() : "0";
+          } else if (rt.billingCycle === 'monthly') {
+            cycle = 'monthly';
+            rentAmount = rt.basePrice ? rt.basePrice.toString() : "0";
+          } else {
+            rentAmount = cycle === 'daily' 
+              ? (rt.baseDailyPrice ? rt.baseDailyPrice.toString() : "0")
+              : (rt.basePrice ? rt.basePrice.toString() : "0");
+          }
+        } else {
+          rentAmount = matchedRoom.rent.toString();
+        }
+      }
+      
+      const resolvedEndDate = cycle === 'monthly' && newContract.startDate
+        ? calculateOneMonthLater(newContract.startDate)
+        : newContract.endDate;
       
       setNewContract(prev => ({
         ...prev,
         tenantId,
         roomId: matchedRoom ? matchedRoom.id : "",
-        rentAmount: rentAmount
+        billingCycle: cycle,
+        rentAmount: rentAmount,
+        endDate: resolvedEndDate
       }));
     } else {
       setNewContract(prev => ({
@@ -135,11 +246,12 @@ export function Contracts() {
         startDate: newContract.startDate,
         endDate: newContract.endDate,
         rentAmount: parseFloat(newContract.rentAmount),
+        billingCycle: newContract.billingCycle,
         terms: newContract.terms || "Standard lease agreement.",
         status: newContract.status,
       });
       setShowUploadModal(false);
-      setNewContract({ tenantId: "", roomId: "", startDate: "", endDate: "", rentAmount: "", terms: "", status: "draft" });
+      setNewContract({ tenantId: "", roomId: "", startDate: "", endDate: "", rentAmount: "", billingCycle: "monthly", terms: "", status: "draft" });
       fetchContracts();
     } catch (err: any) { setError(err.message || "Failed to create contract"); }
   };
@@ -244,6 +356,7 @@ export function Contracts() {
             startDate: dates.startDate,
             endDate: dates.endDate,
             rentAmount: "",
+            billingCycle: "monthly",
             terms: "",
             status: "draft"
           });
@@ -288,14 +401,57 @@ export function Contracts() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Contracts List Card */}
         <div className={`bg-card rounded-3xl border border-foreground/10 shadow-brutal ${selectedContract ? "lg:col-span-2" : "lg:col-span-3"}`}>
-          <div className="p-6 border-b border-foreground/10">
+          <div className="p-6 border-b border-foreground/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <h2 className="text-xl font-semibold text-foreground">Lease Catalog</h2>
+            <div className="flex border border-foreground/10 rounded-2xl p-1 bg-muted/20 gap-1 self-start">
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveTab("all"); }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  activeTab === "all"
+                    ? "bg-primary text-primary-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All ({contracts.length})
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveTab("monthly"); }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  activeTab === "monthly"
+                    ? "bg-purple-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Monthly ({contracts.filter((c: any) => c.billingCycle === "monthly").length})
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActiveTab("daily"); }}
+                className={`px-3 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                  activeTab === "daily"
+                    ? "bg-blue-600 text-white shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                Daily ({contracts.filter((c: any) => c.billingCycle === "daily").length})
+              </button>
+            </div>
           </div>
           <div className="divide-y divide-foreground/5">
-            {contracts.length === 0 ? (
-              <div className="p-12 text-center text-muted-foreground">No contracts yet. Contracts are auto-created when you add tenants.</div>
-            ) : (
-              contracts.map((contract: any) => {
+            {(() => {
+              const filteredContracts = contracts.filter((c: any) => {
+                if (activeTab === "all") return true;
+                return c.billingCycle === activeTab;
+              });
+
+              if (filteredContracts.length === 0) {
+                return (
+                  <div className="p-12 text-center text-muted-foreground">
+                    No lease agreements found under this view.
+                  </div>
+                );
+              }
+
+              return filteredContracts.map((contract: any) => {
                 const isSelected = selectedContract?.id === contract.id;
                 return (
                   <div 
@@ -307,18 +463,26 @@ export function Contracts() {
                       <div className="flex gap-4 flex-1">
                         <FileText className="w-5 h-5 text-primary flex-shrink-0 mt-1" />
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h3 className="font-semibold text-foreground">{contract.tenant}</h3>
                             {getStatusBadge(contract.status)}
+                            <span className={`text-[9px] uppercase font-extrabold px-2 py-0.5 rounded-md border ${
+                              contract.billingCycle === 'daily'
+                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                : "bg-purple-50 text-purple-700 border-purple-200"
+                            }`}>
+                              {contract.billingCycle === 'daily' ? 'Daily Stay' : 'Monthly Rent'}
+                            </span>
                             {contract.status === "active" && isExpiringSoon(contract.endDate) && (
                               <Badge variant="warning">EXPIRING SOON</Badge>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                            <div><span className="block text-xs">Room</span><span className="font-medium text-foreground">Room {contract.room}</span></div>
-                            <div><span className="block text-xs">Start</span><span className="font-medium text-foreground">{(contract.startDate || "").substring(0, 10)}</span></div>
-                            <div><span className="block text-xs">End</span><span className="font-medium text-foreground">{(contract.endDate || "").substring(0, 10)}</span></div>
-                            <div><span className="block text-xs">Rent</span><span className="font-medium text-foreground">${contract.rentAmount}/mo</span></div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-xs text-muted-foreground">
+                            <div><span className="block text-[10px] text-muted-foreground/75">Room</span><span className="font-medium text-foreground">Room {contract.room}</span></div>
+                            <div><span className="block text-[10px] text-muted-foreground/75">{contract.billingCycle === 'daily' ? 'Check-in' : 'Start Date'}</span><span className="font-medium text-foreground">{(contract.startDate || "").substring(0, 10)}</span></div>
+                            <div><span className="block text-[10px] text-muted-foreground/75">{contract.billingCycle === 'daily' ? 'Check-out' : 'End Date'}</span><span className="font-medium text-foreground">{(contract.endDate || "").substring(0, 10)}</span></div>
+                            <div><span className="block text-[10px] text-muted-foreground/75">Duration</span><span className="font-medium text-foreground">{getDurationText(contract)}</span></div>
+                            <div><span className="block text-[10px] text-muted-foreground/75">{contract.billingCycle === 'daily' ? 'Daily Rate' : 'Monthly Rent'}</span><span className="font-medium text-foreground">${contract.rentAmount}/{contract.billingCycle === 'daily' ? 'day' : 'mo'}</span></div>
                           </div>
                         </div>
                       </div>
@@ -382,7 +546,7 @@ export function Contracts() {
                   </div>
                 );
               })
-            )}
+            })()}
           </div>
         </div>
 
@@ -482,8 +646,12 @@ export function Contracts() {
                   <span className="font-semibold text-foreground text-xs font-mono">{(selectedContract.startDate || "").substring(0, 10)} – {(selectedContract.endDate || "").substring(0, 10)}</span>
                 </div>
                 <div className="flex justify-between">
+                  <span className="text-muted-foreground text-xs">Billing Cycle:</span>
+                  <span className="font-bold text-foreground text-xs uppercase">{selectedContract.billingCycle || 'monthly'}</span>
+                </div>
+                <div className="flex justify-between">
                   <span className="text-muted-foreground text-xs">Rent Rate:</span>
-                  <span className="font-semibold text-foreground text-xs">${selectedContract.rentAmount}/mo</span>
+                  <span className="font-semibold text-foreground text-xs">${selectedContract.rentAmount}/{selectedContract.billingCycle === 'daily' ? 'day' : 'mo'}</span>
                 </div>
               </div>
             </div>
@@ -515,22 +683,115 @@ export function Contracts() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">Start Date *</label>
-                  <input type="date" value={newContract.startDate} onChange={(e) => setNewContract({ ...newContract, startDate: e.target.value })}
+                  <label className="text-sm text-muted-foreground mb-1 block">Check-in Date (Start) *</label>
+                  <input type="date" value={newContract.startDate} onChange={(e) => handleStartDateChange(e.target.value)}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground mb-1 block">End Date *</label>
-                  <input type="date" value={newContract.endDate} onChange={(e) => setNewContract({ ...newContract, endDate: e.target.value })}
+                  <label className="text-sm text-muted-foreground mb-1 block">
+                    {newContract.billingCycle === 'monthly' ? 'Check-out Date (Auto)' : 'Check-out Date *'}
+                  </label>
+                  <input type="date" value={newContract.endDate} 
+                    onChange={(e) => setNewContract({ ...newContract, endDate: e.target.value })}
+                    disabled={newContract.billingCycle === 'monthly'}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-75 disabled:bg-muted" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">Billing Cycle *</label>
+                  <select 
+                    value={newContract.billingCycle} 
+                    onChange={(e) => handleBillingCycleChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                  >
+                    {(getSelectedRoomTypeCycle() === 'monthly' || getSelectedRoomTypeCycle() === 'both') && (
+                      <option value="monthly">Monthly</option>
+                    )}
+                    {(getSelectedRoomTypeCycle() === 'daily' || getSelectedRoomTypeCycle() === 'both') && (
+                      <option value="daily">Daily</option>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-1 block">
+                    {newContract.billingCycle === 'daily' ? 'Daily Rate ($) *' : 'Monthly Rent ($) *'}
+                  </label>
+                  <input type="number" placeholder="350" value={newContract.rentAmount}
+                    onChange={(e) => setNewContract({ ...newContract, rentAmount: e.target.value })}
                     className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
                 </div>
               </div>
-              <div>
-                <label className="text-sm text-muted-foreground mb-1 block">Monthly Rent ($) *</label>
-                <input type="number" placeholder="350" value={newContract.rentAmount}
-                  onChange={(e) => setNewContract({ ...newContract, rentAmount: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-              </div>
+
+              {/* Dynamic Live Calculations Preview */}
+              {(() => {
+                if (!newContract.startDate || !newContract.endDate || !newContract.rentAmount) return null;
+                const start = new Date(newContract.startDate);
+                const end = new Date(newContract.endDate);
+                if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) return null;
+                
+                const rateVal = parseFloat(newContract.rentAmount) || 0;
+                
+                if (newContract.billingCycle === "daily") {
+                  const diffTime = Math.abs(end.getTime() - start.getTime());
+                  const diffDays = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+                  const totalCost = diffDays * rateVal;
+                  
+                  return (
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <h4 className="text-xs font-black uppercase text-primary tracking-wider">Live Booking Preview</h4>
+                      <div className="space-y-1.5 text-xs text-foreground/80 font-medium">
+                        <div className="flex justify-between">
+                          <span>Billing Cycle:</span>
+                          <span className="text-primary font-bold">Daily Stays</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Stay Duration:</span>
+                          <span>{diffDays} Days / Nights</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Daily Rate:</span>
+                          <span>${rateVal.toFixed(2)} / day</span>
+                        </div>
+                        <div className="h-px bg-foreground/10 my-1" />
+                        <div className="flex justify-between font-black text-sm text-foreground">
+                          <span>Estimated Total Stay Rent:</span>
+                          <span className="text-primary">${totalCost.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                } else {
+                  // Monthly
+                  const diffMonths = Math.max(1, (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()));
+                  const totalCost = diffMonths * rateVal;
+                  
+                  return (
+                    <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <h4 className="text-xs font-black uppercase text-primary tracking-wider">Live Lease Preview</h4>
+                      <div className="space-y-1.5 text-xs text-foreground/80 font-medium">
+                        <div className="flex justify-between">
+                          <span>Billing Cycle:</span>
+                          <span className="text-primary font-bold">Monthly Rent</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Lease Duration:</span>
+                          <span>{diffMonths} Months</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Monthly Rate:</span>
+                          <span>${rateVal.toFixed(2)} / mo</span>
+                        </div>
+                        <div className="h-px bg-foreground/10 my-1" />
+                        <div className="flex justify-between font-black text-sm text-foreground">
+                          <span>Total Contract Valuation:</span>
+                          <span className="text-primary">${totalCost.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+              })()}
               
               {/* Choosing initial lease status */}
               <div>

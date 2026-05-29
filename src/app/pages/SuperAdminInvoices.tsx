@@ -161,16 +161,16 @@ export function SuperAdminInvoices() {
 
       {/* Invoice Details Modal */}
       {selectedInvoice && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-3xl border border-foreground/15 max-w-2xl w-full p-8 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-150 border-t-8 border-t-primary">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-lg flex items-start justify-center z-50 p-4 md:p-6 overflow-y-auto">
+          <div className="bg-card rounded-3xl border border-foreground/15 max-w-2xl w-full p-4 sm:p-6 md:p-8 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-150 border-t-8 border-t-primary my-auto">
             <button 
               onClick={() => setSelectedInvoice(null)} 
-              className="absolute top-5 right-5 p-2 hover:bg-muted rounded-xl transition-all border border-foreground/5 text-muted-foreground hover:text-foreground"
+              className="absolute top-4 right-4 sm:top-5 sm:right-5 p-2 hover:bg-muted rounded-xl transition-all border border-foreground/5 text-muted-foreground hover:text-foreground z-10"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-3 pb-6 border-b border-foreground/10">
+            <div className="flex items-center gap-3 pb-6 border-b border-foreground/10 pr-10 sm:pr-0">
               <div className="bg-primary text-primary-foreground p-3 rounded-2xl shadow-brutal-sm border border-foreground shrink-0">
                 <Receipt className="w-6 h-6 text-foreground" />
               </div>
@@ -188,7 +188,7 @@ export function SuperAdminInvoices() {
             </div>
 
             <div className="py-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="bg-muted/20 p-4 rounded-xl border border-foreground/5">
                   <p className="font-extrabold text-muted-foreground uppercase text-[9px]">Billed Tenant</p>
                   <p className="font-bold text-foreground text-sm mt-1">{selectedInvoice.tenant}</p>

@@ -12,7 +12,7 @@ use Illuminate\Console\Command;
 class GenerateMonthlyInvoices extends Command
 {
     protected $signature = 'rent:generate';
-    protected $description = 'Auto-generate monthly rent invoices for all active tenants';
+    protected $description = 'Auto-generate invoices for active contracts based on billing cycles';
 
     public function handle(): int
     {
@@ -20,7 +20,7 @@ class GenerateMonthlyInvoices extends Command
         $dueDay = $settings->invoice_due_day ?? 1;
         $month = now()->format('F Y');
 
-        // Get all active contracts
+        // Only process active contracts
         $contracts = Contract::with(['tenant', 'room'])
             ->where('status', 'active')
             ->whereDate('start_date', '<=', now())
@@ -36,45 +36,94 @@ class GenerateMonthlyInvoices extends Command
                 continue;
             }
 
-            // Check if invoice already exists for this month
-            $exists = Payment::where('tenant_id', $contract->tenant_id)
-                ->where('month', $month)
-                ->exists();
+            // 1. Daily Stay Billing Rules
+            if ($contract->billing_cycle === 'daily') {
+                $exists = Payment::where('contract_id', $contract->id)
+                    ->where('invoice_type', 'daily_rental')
+                    ->exists();
 
-            if ($exists) {
-                $skipped++;
-                continue;
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Calculate the entire consolidated checkout cost
+                $totalRent = $contract->calculateTotalRent();
+                $totalDays = $contract->getDurationInDays();
+
+                // Create the one-off check-in stay invoice
+                Payment::create([
+                    'tenant_id'            => $contract->tenant_id,
+                    'room_id'              => $contract->room_id,
+                    'contract_id'          => $contract->id,
+                    'amount'               => $totalRent,
+                    'utility_amount'       => 0, // Utilities calculated separately
+                    'late_fee'             => 0,
+                    'due_date'             => $contract->start_date->format('Y-m-d'), // Due on check-in
+                    'status'               => 'pending',
+                    'month'                => $contract->start_date->format('F Y'),
+                    'invoice_type'         => 'daily_rental',
+                    'billing_period_start' => $contract->start_date->format('Y-m-d'),
+                    'billing_period_end'   => $contract->end_date->format('Y-m-d'),
+                    'receipt_number'       => null,
+                    'invoice_number'       => Payment::generateInvoiceNumber(),
+                    'auto_generated'       => true,
+                    'notes'                => "Consolidated daily short-stay invoice ({$totalDays} days)",
+                    'user_id'              => $contract->user_id,
+                ]);
+
+                $created++;
+            } 
+            // 2. Monthly Recurring Billing Rules
+            else {
+                // Check if invoice already exists for this contract and current month billing period
+                $exists = Payment::where('contract_id', $contract->id)
+                    ->where('invoice_type', 'monthly_rent')
+                    ->whereDate('billing_period_start', now()->startOfMonth())
+                    ->exists();
+
+                if ($exists) {
+                    $skipped++;
+                    continue;
+                }
+
+                // Check for utility charges this month (if applicable)
+                $utility = Utility::where('room_id', $contract->room_id)
+                    ->where('month', $month)
+                    ->first();
+
+                $utilityAmount = $utility
+                    ? round((float)$utility->electricity_cost + (float)$utility->water_cost, 2)
+                    : 0;
+
+                // Create recurring monthly invoice
+                $dueDate = now()->startOfMonth()->day($dueDay)->format('Y-m-d');
+
+                Payment::create([
+                    'tenant_id'            => $contract->tenant_id,
+                    'room_id'              => $contract->room_id,
+                    'contract_id'          => $contract->id,
+                    'amount'               => $contract->rent_amount, // 1 month rate only
+                    'utility_amount'       => $utilityAmount,
+                    'late_fee'             => 0,
+                    'due_date'             => $dueDate,
+                    'status'               => 'pending',
+                    'month'                => $month,
+                    'invoice_type'         => 'monthly_rent',
+                    'billing_period_start' => now()->startOfMonth()->format('Y-m-d'),
+                    'billing_period_end'   => now()->endOfMonth()->format('Y-m-d'),
+                    'receipt_number'       => null,
+                    'invoice_number'       => Payment::generateInvoiceNumber(),
+                    'auto_generated'       => true,
+                    'notes'                => 'Auto-generated recurring monthly rent invoice',
+                    'user_id'              => $contract->user_id,
+                ]);
+
+                $created++;
             }
-
-            // Check for utility charges this month
-            $utility = Utility::where('room_id', $contract->room_id)
-                ->where('month', $month)
-                ->first();
-
-            $utilityAmount = $utility
-                ? round((float)$utility->electricity_cost + (float)$utility->water_cost, 2)
-                : 0;
-
-            // Create the invoice
-            $dueDate = now()->startOfMonth()->day($dueDay)->format('Y-m-d');
-
-            Payment::create([
-                'tenant_id'      => $contract->tenant_id,
-                'room_id'        => $contract->room_id,
-                'amount'         => $contract->rent_amount,
-                'utility_amount' => $utilityAmount,
-                'late_fee'       => 0,
-                'due_date'       => $dueDate,
-                'status'         => 'pending',
-                'month'          => $month,
-                'auto_generated' => true,
-                'notes'          => 'Auto-generated monthly invoice',
-            ]);
-
-            $created++;
         }
 
-        $this->info("Monthly invoices: {$created} created, {$skipped} skipped.");
+        $this->info("Generated invoices: {$created} created, {$skipped} skipped.");
         return self::SUCCESS;
     }
 }

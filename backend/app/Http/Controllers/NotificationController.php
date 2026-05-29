@@ -23,7 +23,6 @@ class NotificationController extends Controller
             'type'             => $n->type,
             'read'             => $n->read,
             'created_at'       => $n->created_at,
-            'telegram_chat_id' => $n->telegram_chat_id,
             'metadata'         => $n->metadata,
         ]);
 
@@ -163,47 +162,4 @@ class NotificationController extends Controller
         return $this->success($notification, 'Booking request received successfully!', 201);
     }
 
-    /**
-     * Send Telegram Broadcast or Reply to Tenant
-     */
-    public function telegramBroadcast(Request $request): JsonResponse
-    {
-        $v = $request->validate([
-            'message' => 'required|string',
-            'chat_id' => 'nullable|string', // tenant_id
-        ]);
-
-        $tenantId = $v['chat_id'] ?? null;
-        $message = $v['message'];
-        $admin = $request->user();
-
-        if ($tenantId) {
-            $tenant = \App\Models\Tenant::find($tenantId);
-            if (!$tenant) {
-                return $this->error('Tenant not found', 'not_found', null, 404);
-            }
-
-            $notification = Notification::create([
-                'user_id' => $admin->id,
-                'title' => "Reply from Property Manager",
-                'message' => $message,
-                'type' => 'telegram_sent',
-                'metadata' => json_encode(['tenant_id' => $tenantId]),
-                'read' => false,
-            ]);
-
-            return $this->success($notification, 'Reply sent via Telegram!');
-        } else {
-            // General announcement to all
-            $notification = Notification::create([
-                'user_id' => $admin->id,
-                'title' => "Broadcast announcement from Property Manager",
-                'message' => $message,
-                'type' => 'broadcast',
-                'read' => false,
-            ]);
-
-            return $this->success($notification, 'Broadcast sent via Telegram!');
-        }
-    }
 }

@@ -444,24 +444,6 @@ class ApiClient {
     });
   }
 
-  // Telegram
-  async telegramBroadcast(message: string, chatId?: string) {
-    return this.request<any>('/telegram/broadcast', {
-      method: 'POST',
-      body: JSON.stringify({ message, chat_id: chatId }),
-    });
-  }
-
-  async telegramRegisterWebhook(webhookUrl: string) {
-    return this.request<any>('/telegram/register-webhook', {
-      method: 'POST',
-      body: JSON.stringify({ webhook_url: webhookUrl }),
-    });
-  }
-
-  async telegramTest() {
-    return this.request<any>('/telegram/test');
-  }
 
   // Generic REST methods for flexibility
   async get<T = any>(endpoint: string, options?: { params?: Record<string, any> }) {
