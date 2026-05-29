@@ -116,6 +116,7 @@ class GenerateMonthlyInvoices extends Command
                 $start = $targetDate->copy()->day($billingDay);
                 $billingPeriodStart = $start->format('Y-m-d');
                 $billingPeriodEnd = $start->copy()->addMonth()->format('Y-m-d');
+
                 $dueDate = $billingPeriodEnd;
 
                 Payment::create([

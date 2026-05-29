@@ -6,8 +6,8 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 export function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@admin.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,14 +37,7 @@ export function Login() {
       <div className="absolute bottom-20 right-20 hidden h-14 w-14 rotate-45 bg-secondary md:block" />
       <div className="absolute top-1/3 right-1/4 hidden h-8 w-8 rounded-full bg-primary/30 md:block" />
 
-      {/* Back to website link */}
-      <a
-        href="http://localhost:8081"
-        className="absolute top-6 left-6 inline-flex items-center gap-2 rounded-xl border border-foreground px-4 py-2 text-sm font-medium transition hover:bg-foreground hover:text-background"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Website
-      </a>
+
 
       <div className="relative w-full max-w-md">
         {/* Card */}
@@ -110,16 +103,7 @@ export function Login() {
             </button>
           </form>
 
-          {/* Footer */}
-          <div className="mt-6 text-center space-y-1">
-            <p className="text-xs text-muted-foreground font-semibold">Demo Accounts:</p>
-            <p className="text-xs text-muted-foreground">
-              Super Admin: superadmin@rentflow.com / password
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Owner: owner@rentflow.com / password
-            </p>
-          </div>
+
         </div>
       </div>
     </div>

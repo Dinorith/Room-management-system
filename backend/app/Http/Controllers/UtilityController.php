@@ -85,10 +85,13 @@ class UtilityController extends Controller
                 ->first();
 
             if ($payment) {
+                $ePrev = $prev ? $prev->electricity : 0;
+                $wPrev = $prev ? $prev->water : 0;
+                $noteText = "Utility Details: E_usage={$eUsage}kWh, E_cost=\${$eCost}, E_prev={$ePrev}, E_curr={$v['electricity']} | W_usage={$wUsage}m³, W_cost=\${$wCost}, W_prev={$wPrev}, W_curr={$v['water']}";
+
                 $payment->update([
                     'utility_amount' => round($eCost + $wCost, 2),
-                    'notes' => ($payment->notes ? $payment->notes . ' | ' : '') .
-                        "Utility: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+                    'notes' => $noteText,
                 ]);
             }
         }
@@ -203,14 +206,26 @@ class UtilityController extends Controller
         $wCost = (float)$utility->water_cost;
         $utilityTotal = round($eCost + $wCost, 2);
 
-        $eUsage = (float)$utility->electricity;
-        $wUsage = (float)$utility->water;
+        // Fetch previous utility reading to calculate correct readings and usage
+        $prev = \App\Models\Utility::where('room_id', $room->id)
+            ->where('month', '<', $utility->month)
+            ->orderBy('month', 'desc')
+            ->first();
+
+        $ePrev = $prev ? $prev->electricity : 0;
+        $eCurr = $utility->electricity;
+        $eUsage = $prev ? ($eCurr - $ePrev) : $eCurr;
+
+        $wPrev = $prev ? $prev->water : 0;
+        $wCurr = $utility->water;
+        $wUsage = $prev ? ($wCurr - $wPrev) : $wCurr;
+
+        $noteText = "Utility Details: E_usage={$eUsage}kWh, E_cost=\${$eCost}, E_prev={$ePrev}, E_curr={$eCurr} | W_usage={$wUsage}m³, W_cost=\${$wCost}, W_prev={$wPrev}, W_curr={$wCurr}";
 
         if ($payment) {
             $payment->update([
                 'utility_amount' => $utilityTotal,
-                'notes' => ($payment->notes ? $payment->notes . ' | ' : '') .
-                    "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+                'notes' => $noteText,
             ]);
         } else {
             $contract = \App\Models\Contract::where('tenant_id', $tenant->id)
@@ -283,7 +298,7 @@ class UtilityController extends Controller
                 'invoice_type' => $invoiceType,
                 'billing_period_start' => $billingPeriodStart,
                 'billing_period_end' => $billingPeriodEnd,
-                'notes' => "Utility Link: E={$eUsage}kWh(\${$eCost}) W={$wUsage}m³(\${$wCost})",
+                'notes' => $noteText,
             ]);
         }
 

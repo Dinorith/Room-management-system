@@ -60,18 +60,48 @@ export function Payments() {
         // Sum up total
         const total = rentAmount + utilityAmount + lateFee;
         
-        // Calculate meter readings dynamically
-        const elecRate = 0.20;
-        const waterRate = 0.50;
+        // Parse utility details if they exist in the notes string
+        let elecUsage = 0;
+        let elecCost = 0;
+        let elecPrev = 1420;
+        let elecCurr = 1420;
         
-        const elecCost = utilityAmount * 0.7;
-        const waterCost = utilityAmount * 0.3;
+        let waterUsage = 0;
+        let waterCost = 0;
+        let waterPrev = 185;
+        let waterCurr = 185;
+
+        const notes = p.notes || "";
+        const regex = /E_usage=([\d.]+)kWh,\s*E_cost=\$([\d.]+),\s*E_prev=([\d.]+),\s*E_curr=([\d.]+)\s*\|\s*W_usage=([\d.]+)m³,\s*W_cost=\$([\d.]+),\s*W_prev=([\d.]+),\s*W_curr=([\d.]+)/i;
+        const match = notes.match(regex);
         
-        const elecUsage = Math.round(elecCost / elecRate);
-        const waterUsage = Math.round(waterCost / waterRate);
-        
-        const elecPrev = 1420;
-        const waterPrev = 185;
+        if (match) {
+          elecUsage = parseFloat(match[1]);
+          elecCost = parseFloat(match[2]);
+          elecPrev = parseFloat(match[3]);
+          elecCurr = parseFloat(match[4]);
+          
+          waterUsage = parseFloat(match[5]);
+          waterCost = parseFloat(match[6]);
+          waterPrev = parseFloat(match[7]);
+          waterCurr = parseFloat(match[8]);
+        } else {
+          // Fallback to dynamic estimation if notes field doesn't have details
+          const elecRate = 0.20;
+          const waterRate = 0.50;
+          
+          elecCost = utilityAmount * 0.7;
+          waterCost = utilityAmount * 0.3;
+          
+          elecUsage = Math.round(elecCost / elecRate);
+          waterUsage = Math.round(waterCost / waterRate);
+          
+          elecPrev = 1420;
+          elecCurr = elecPrev + elecUsage;
+          
+          waterPrev = 185;
+          waterCurr = waterPrev + waterUsage;
+        }
 
         return {
           id: p.id,
@@ -98,11 +128,13 @@ export function Payments() {
           },
           // Readings
           elecPrev,
-          elecCurr: elecPrev + elecUsage,
+          elecCurr,
           elecUsage,
+          elecCost,
           waterPrev,
-          waterCurr: waterPrev + waterUsage,
+          waterCurr,
           waterUsage,
+          waterCost,
           transactionId: p.transactionId || `TXN-${p.id.substring(0, 10).toUpperCase()}`,
           invoiceNumber: p.invoiceNumber || p.invoice_number || `INV-${p.id.substring(0, 8).toUpperCase()}`,
           invoiceType: p.invoiceType || p.invoice_type,
@@ -730,7 +762,7 @@ export function Payments() {
                             </div>
                           </td>
                           <td className="p-3 sm:p-4 text-center text-muted-foreground text-xs font-semibold">{selectedInvoice.elecUsage} kWh</td>
-                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${(selectedInvoice.utilityAmount * 0.7).toFixed(2)}</td>
+                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${selectedInvoice.elecCost.toFixed(2)}</td>
                         </tr>
                       )}
 
@@ -746,7 +778,7 @@ export function Payments() {
                             </div>
                           </td>
                           <td className="p-3 sm:p-4 text-center text-muted-foreground text-xs font-semibold">{selectedInvoice.waterUsage} m³</td>
-                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${(selectedInvoice.utilityAmount * 0.3).toFixed(2)}</td>
+                          <td className="p-3 sm:p-4 pr-4 sm:pr-6 text-right font-bold text-foreground">${selectedInvoice.waterCost.toFixed(2)}</td>
                         </tr>
                       )}
 
