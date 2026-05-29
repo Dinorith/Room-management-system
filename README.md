@@ -108,7 +108,7 @@ php artisan migrate --seed
 | Role | Email | Password |
 |------|-------|----------|
 | Super Admin | `superadmin@rentflow.com` | `password` |
-| Owner | `admin@admin.com` | `password` |
+| Sample Owner / Landlord | `owner@rentflow.com` | `password` |
 
 ---
 

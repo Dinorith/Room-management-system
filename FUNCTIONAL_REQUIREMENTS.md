@@ -2,9 +2,9 @@
 
 ## Document Information
 - **Project Name:** RentFlow — Property & Room Management System
-- **Version:** 2.0
+- **Version:** 2.1
 - **Date Created:** May 25, 2026
-- **Last Updated:** May 28, 2026
+- **Last Updated:** May 29, 2026
 
 ---
 
@@ -352,11 +352,13 @@ RentFlow is a multi-owner SaaS web application for managing rental properties, t
   - Late fee tracking
 
 #### FR 2.7.2 Generate Monthly Invoices
-- **Description:** Auto-generate invoices for all active tenants
+- **Description:** Auto-generate invoices for active tenants based on their specific billing cycle
 - **Acceptance Criteria:**
-  - Batch generate invoices for a given month via `POST /api/payments/generate-invoices`
-  - Link rent charges and utility charges to generated invoices
-  - Auto-flag overdue invoices
+  - **Billing Cycles**: Supports daily short-term stays (due immediately) and recurring monthly contracts.
+  - **Custom Lease Period**: For monthly rooms, calculates the billing period start dynamically from the tenant's actual check-in/contract start day and sets the end date exactly 1 month later (e.g. May 15 to June 15).
+  - **Check-in Anniversary Due Date**: Sets the unpaid invoice due date to equal the checkout/renewal end date rather than generic calendar days, preventing premature overdue flags.
+  - Batch generate invoices for a given month via the automated `rent:generate` artisan scheduler or the manual dashboard.
+  - Link precise water and electricity readings, consumption, and costs cleanly to generated monthly invoices.
 
 #### FR 2.7.3 Record Payment
 - **Description:** Log payment received from tenant
@@ -378,11 +380,12 @@ RentFlow is a multi-owner SaaS web application for managing rental properties, t
   - Payment status badge
 
 #### FR 2.7.5 Late Payment Tracking
-- **Description:** Monitor overdue payments
+- **Description:** Monitor overdue payments and dynamically apply late fees per landlord preferences
 - **Acceptance Criteria:**
-  - Automatic overdue flagging
-  - Display days overdue
-  - Late fee calculation
+  - **Monthly Cycle Scoping**: Overdue status transitions and late fee calculations are restricted exclusively to monthly cycles (`monthly_rent`). Stays paid by day (`daily_rental`) are completely isolated and never dynamically flagged overdue or charged late fees.
+  - **Multi-Tenant Config Isolation**: The automated late fee command (`payments:process-late-fees`) loads configurations (late fee amount, grace days, etc.) dynamically for the owner of each payment record.
+  - **Auto-Healing Due Dates**: Backend self-healing dynamically scans, repairs, and aligns misaligned legacy due dates with their checkout anniversary date (`billing_period_end`), safely resetting the status to pending if due in the future.
+  - Display days overdue and applied late penalties in the invoice lists and detailed breakdowns.
   - Available via `/api/payments/late`
 
 #### FR 2.7.6 Payment Schedule
@@ -866,6 +869,7 @@ RentFlow is a multi-owner SaaS web application for managing rental properties, t
 |---------|------|--------|---------|
 | 1.0 | May 25, 2026 | Admin | Initial document creation |
 | 2.0 | May 28, 2026 | Admin | Complete rewrite — added Super Admin Console, multi-owner SaaS architecture, locked USD/Phnom Penh settings, removed emojis, updated all features to match actual implementation |
+| 2.1 | May 29, 2026 | Admin | Dynamic check-in-based billing, 1-month due dates, multi-tenant per-landlord late fee processor scoping, due date self-healing, precise utilities mappings, and date overflow fixes in monthly reports |
 
 ---
 
