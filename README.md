@@ -53,7 +53,6 @@ RentFlow is a full-stack multi-owner SaaS platform for managing rental propertie
 |---------|-------|:---:|
 | Currency | USD ($) | No |
 | Timezone | Asia/Phnom_Penh (GMT+7) | No |
-| UI Icons | Lucide React | No |
 
 ---
 
