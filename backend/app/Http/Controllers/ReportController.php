@@ -17,14 +17,14 @@ class ReportController extends Controller
 
         try {
             $date = \Carbon\Carbon::parse("1 {$month}");
+            $month = $date->format('F Y');
         } catch (\Exception $e) {
             $date = now();
             $month = $date->format('F Y');
         }
 
         $payments = $this->scopeByOwner(Payment::query(), $request)
-            ->whereMonth('due_date', $date->month)
-            ->whereYear('due_date', $date->year)->get();
+            ->where('month', $month)->get();
 
         $totalIncome = round($payments->sum(fn($p) => $p->total), 2);
         $paidAmount = round($payments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
@@ -135,18 +135,16 @@ class ReportController extends Controller
             'recentTenants' => $recentTenants,
         ]);
     }
-
     public function financialSummary(Request $request): JsonResponse
     {
         $now = now();
 
         // Year-to-date revenue (rent + utilities + late fees)
-        $ytdPayments = $this->scopeByOwner(Payment::query(), $request)->whereYear('due_date', $now->year)->get();
+        $ytdPayments = $this->scopeByOwner(Payment::query(), $request)->where('month', 'like', "% {$now->year}")->get();
         $ytdRevenue = round($ytdPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
 
         // This month income
-        $thisMonthPayments = $this->scopeByOwner(Payment::query(), $request)->whereMonth('due_date', $now->month)
-            ->whereYear('due_date', $now->year)->get();
+        $thisMonthPayments = $this->scopeByOwner(Payment::query(), $request)->where('month', $now->format('F Y'))->get();
         $thisMonthIncome = round($thisMonthPayments->sum(fn($p) => $p->total), 2);
         $thisMonthPaid = round($thisMonthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
 
@@ -161,9 +159,9 @@ class ReportController extends Controller
         // Monthly income summary (last 6 months)
         $monthlySummary = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = $now->copy()->subMonths($i);
-            $monthPayments = $this->scopeByOwner(Payment::query(), $request)->whereMonth('due_date', $date->month)
-                ->whereYear('due_date', $date->year)->get();
+            $date = $now->copy()->startOfMonth()->subMonths($i);
+            $monthPayments = $this->scopeByOwner(Payment::query(), $request)
+                ->where('month', $date->format('F Y'))->get();
             $total = round($monthPayments->sum(fn($p) => $p->total), 2);
             $paid = round($monthPayments->where('status', 'paid')->sum(fn($p) => $p->total), 2);
             $unpaid = round($total - $paid, 2);

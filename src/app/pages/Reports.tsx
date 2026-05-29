@@ -26,7 +26,7 @@ export function Reports() {
     if (!data?.monthlySummary) return;
     const headers = "Month,Total Income,Paid,Unpaid,Collection Rate\n";
     const rows = data.monthlySummary
-      .map((m: any) => `${m.month},$${m.totalIncome},$${m.paid},$${m.unpaid},${m.collectionRate}%`)
+      .map((m: any) => `${m.month},${parseFloat(m.totalIncome || 0).toFixed(2)},${parseFloat(m.paid || 0).toFixed(2)},${parseFloat(m.unpaid || 0).toFixed(2)},${m.collectionRate}%`)
       .join("\n");
     const blob = new Blob([headers + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);

@@ -129,7 +129,7 @@ export function SuperAdminInvoices() {
                     <td className="p-4 text-foreground">{inv.tenant}</td>
                     <td className="p-4 text-muted-foreground">Room {inv.room}</td>
                     <td className="p-4 text-muted-foreground">{inv.month}</td>
-                    <td className="p-4 font-black text-foreground">${parseFloat(inv.amount).toFixed(2)}</td>
+                    <td className="p-4 font-black text-foreground">${parseFloat(inv.total).toFixed(2)}</td>
                     <td className="p-4 font-bold text-rose-500/80">{inv.dueDate}</td>
                     <td className="p-4">
                       <Badge variant={inv.status === "paid" ? "success" : inv.status === "overdue" ? "danger" : "warning"}>
@@ -206,10 +206,22 @@ export function SuperAdminInvoices() {
                   <span className="text-muted-foreground">Monthly Base Room Rent:</span>
                   <span className="text-foreground">${parseFloat(selectedInvoice.amount).toFixed(2)}</span>
                 </div>
+                {parseFloat(selectedInvoice.utilityAmount || 0) > 0 && (
+                  <div className="flex justify-between text-xs font-semibold">
+                    <span className="text-muted-foreground">Utilities (Electricity & Water):</span>
+                    <span className="text-foreground">${parseFloat(selectedInvoice.utilityAmount).toFixed(2)}</span>
+                  </div>
+                )}
+                {parseFloat(selectedInvoice.lateFee || 0) > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-rose-500">
+                    <span className="text-rose-500 font-bold">Late Fee Applied:</span>
+                    <span className="font-bold">${parseFloat(selectedInvoice.lateFee).toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="h-px bg-foreground/10 my-2" />
                 <div className="flex justify-between items-baseline font-black">
                   <span className="text-xs text-foreground uppercase tracking-wider">Grand Total:</span>
-                  <span className="text-lg text-primary font-mono">${parseFloat(selectedInvoice.amount).toFixed(2)}</span>
+                  <span className="text-lg text-primary font-mono">${parseFloat(selectedInvoice.total || selectedInvoice.amount).toFixed(2)}</span>
                 </div>
               </div>
             </div>

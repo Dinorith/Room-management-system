@@ -43,7 +43,7 @@ export function SuperAdminPayments() {
   const exportPaymentsCSV = () => {
     const headers = ["Invoice ID", "Owner", "Tenant", "Room", "Billing Month", "Amount Paid", "Date Paid"];
     const rows = payments.map(p => [
-      p.invoiceId, p.owner, p.tenant, `Room ${p.room}`, p.month, `$${parseFloat(p.amount).toFixed(2)}`, p.paidDate || "N/A"
+      p.invoiceId, p.owner, p.tenant, `Room ${p.room}`, p.month, `$${parseFloat(p.total).toFixed(2)}`, p.paidDate || "N/A"
     ]);
     const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
     const encodedUri = encodeURI(csvContent);
@@ -55,7 +55,7 @@ export function SuperAdminPayments() {
     document.body.removeChild(link);
   };
 
-  const totalSettledRevenue = payments.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+  const totalSettledRevenue = payments.reduce((sum, p) => sum + parseFloat(p.total || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -151,7 +151,7 @@ export function SuperAdminPayments() {
                     <td className="p-4 text-foreground">{p.tenant}</td>
                     <td className="p-4 text-muted-foreground">Room {p.room}</td>
                     <td className="p-4 text-muted-foreground">{p.month}</td>
-                    <td className="p-4 font-black text-emerald-600">${parseFloat(p.amount).toFixed(2)}</td>
+                    <td className="p-4 font-black text-emerald-600">${parseFloat(p.total).toFixed(2)}</td>
                     <td className="p-4 text-muted-foreground uppercase text-xs font-mono">{p.paymentMethod || "QR CODE"}</td>
                     <td className="p-4 pr-6">
                       <Badge variant="success">

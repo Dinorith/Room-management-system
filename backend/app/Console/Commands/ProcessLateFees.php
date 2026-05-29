@@ -15,16 +15,11 @@ class ProcessLateFees extends Command
 
     public function handle(): int
     {
-        $settings = Setting::first();
-        $graceDays = $settings->grace_period_days ?? 5;
-        $lateFeeAmount = (float)($settings->late_fee_amount ?? 0);
-        $lateFeeType = $settings->late_fee_type ?? 'fixed';
-
         $today = now()->startOfDay();
         $overdueCount = 0;
         $lateFeeCount = 0;
 
-        // Step 1: Mark pending payments past due_date as overdue (monthly only)
+        // Step 1: Mark pending monthly payments past due_date as overdue
         $pendingPayments = Payment::where('status', 'pending')
             ->where('invoice_type', 'monthly_rent')
             ->whereDate('due_date', '<', $today)
@@ -35,32 +30,49 @@ class ProcessLateFees extends Command
             $overdueCount++;
         }
 
-        // Step 2: Apply late fees to overdue payments past grace period
-        if ($lateFeeAmount > 0) {
+        // Step 2: Apply late fees dynamically per landlord's settings
+        // Group overdue payments by their owner (user_id)
+        $overduePaymentsGrouped = Payment::where('status', 'overdue')
+            ->where('invoice_type', 'monthly_rent')
+            ->where('late_fee', 0) // Only apply once
+            ->get()
+            ->groupBy('user_id');
+
+        foreach ($overduePaymentsGrouped as $userId => $payments) {
+            // Find settings for this specific landlord/owner
+            $settings = Setting::where('user_id', $userId)->first() ?? Setting::first();
+            if (!$settings) {
+                continue;
+            }
+
+            $graceDays = $settings->grace_period_days ?? 5;
+            $lateFeeAmount = (float)($settings->late_fee_amount ?? 0);
+            $lateFeeType = $settings->late_fee_type ?? 'fixed';
+
+            if ($lateFeeAmount <= 0) {
+                continue;
+            }
+
             $graceDeadline = $today->copy()->subDays($graceDays);
 
-            $overduePayments = Payment::where('status', 'overdue')
-                ->where('invoice_type', 'monthly_rent')
-                ->where('late_fee', 0) // Only apply once
-                ->whereDate('due_date', '<=', $graceDeadline)
-                ->get();
+            foreach ($payments as $payment) {
+                if ($payment->due_date->lte($graceDeadline)) {
+                    $fee = $lateFeeType === 'percentage'
+                        ? round((float)$payment->amount * ($lateFeeAmount / 100), 2)
+                        : $lateFeeAmount;
 
-            foreach ($overduePayments as $payment) {
-                $fee = $lateFeeType === 'percentage'
-                    ? round((float)$payment->amount * ($lateFeeAmount / 100), 2)
-                    : $lateFeeAmount;
-
-                $payment->update([
-                    'late_fee' => $fee,
-                    'notes' => ($payment->notes ? $payment->notes . ' | ' : '') . "Late fee \${$fee} applied on " . now()->format('Y-m-d'),
-                ]);
-                $lateFeeCount++;
+                    $payment->update([
+                        'late_fee' => $fee,
+                        'notes' => ($payment->notes ? $payment->notes . ' | ' : '') . "Late fee \${$fee} applied on " . now()->format('Y-m-d'),
+                    ]);
+                    $lateFeeCount++;
+                }
             }
         }
 
         // Step 3: Notify admin about new overdue payments
         if ($overdueCount > 0) {
-            $admin = User::first();
+            $admin = User::where('role', 'super_admin')->first();
             if ($admin) {
                 Notification::create([
                     'user_id' => $admin->id,
