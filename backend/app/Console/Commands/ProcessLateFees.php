@@ -24,8 +24,9 @@ class ProcessLateFees extends Command
         $overdueCount = 0;
         $lateFeeCount = 0;
 
-        // Step 1: Mark pending payments past due_date as overdue
+        // Step 1: Mark pending payments past due_date as overdue (monthly only)
         $pendingPayments = Payment::where('status', 'pending')
+            ->where('invoice_type', 'monthly_rent')
             ->whereDate('due_date', '<', $today)
             ->get();
 
@@ -39,6 +40,7 @@ class ProcessLateFees extends Command
             $graceDeadline = $today->copy()->subDays($graceDays);
 
             $overduePayments = Payment::where('status', 'overdue')
+                ->where('invoice_type', 'monthly_rent')
                 ->where('late_fee', 0) // Only apply once
                 ->whereDate('due_date', '<=', $graceDeadline)
                 ->get();

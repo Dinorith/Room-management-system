@@ -378,6 +378,31 @@ class ApiClient {
     });
   }
 
+  // Payment Options
+  async getPaymentOptions() {
+    return this.request<any>('/payment-options');
+  }
+
+  async createPaymentOption(data: any) {
+    return this.request<any>('/payment-options', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updatePaymentOption(id: string, data: any) {
+    return this.request<any>(`/payment-options/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deletePaymentOption(id: string) {
+    return this.request<any>(`/payment-options/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Reports
   async getIncomeReport(params?: Record<string, string>) {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';

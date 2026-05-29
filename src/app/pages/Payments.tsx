@@ -853,68 +853,75 @@ export function Payments() {
                   </div>
                 </div>
 
-                {/* Bottom Controls Row & Watermark */}
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-5 border-t border-foreground/10 mt-auto">
-                  <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 font-bold">
-                    <ShieldCheck className="w-4 h-4 text-emerald-500" /> RentFlow Certified Billing Ledger
-                  </div>
-                  <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2 no-print w-full sm:w-auto">
+              </div>
+            </div>
+
+            {/* Bottom Controls Row & Watermark */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-foreground/10 mt-8 no-print w-full">
+              <div className="text-xs text-muted-foreground flex items-center gap-2 font-semibold bg-muted/40 px-3.5 py-2 rounded-2xl border border-foreground/5 shadow-sm">
+                <ShieldCheck className="w-4.5 h-4.5 text-emerald-500" />
+                <span>RentFlow Certified Billing Ledger</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-center sm:justify-end gap-2.5 w-full sm:w-auto">
+                <Button 
+                  variant="outline" 
+                  icon={copiedInvoiceId === selectedInvoice.id ? CheckCircle : Link2} 
+                  onClick={() => handleCopyPaymentLink(selectedInvoice.id)}
+                  className={copiedInvoiceId === selectedInvoice.id ? "text-emerald-600 border-emerald-500 bg-emerald-50 font-bold" : "font-semibold"}
+                >
+                  {copiedInvoiceId === selectedInvoice.id ? "Link Copied!" : "Copy Payment Link"}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  icon={Eye} 
+                  onClick={() => window.open(`${window.location.protocol}//${window.location.host}/pay/${selectedInvoice.id}`, '_blank')}
+                  className="font-semibold"
+                >
+                  Open Portal
+                </Button>
+                <Button 
+                  variant="outline" 
+                  icon={Printer} 
+                  onClick={() => window.print()} 
+                  className="font-semibold"
+                >
+                  Print
+                </Button>
+                {selectedInvoice.status !== "paid" && (
+                  <>
                     <Button 
                       variant="outline" 
-                      icon={copiedInvoiceId === selectedInvoice.id ? CheckCircle : Link2} 
-                      onClick={() => handleCopyPaymentLink(selectedInvoice.id)}
-                      className={copiedInvoiceId === selectedInvoice.id ? "text-emerald-600 border-emerald-500 bg-emerald-50 font-bold" : "font-semibold"}
+                      icon={AlertTriangle} 
+                      disabled={updatingId === selectedInvoice.id} 
+                      onClick={async () => {
+                        if (confirm("Are you sure you want to void and remove this invoice?")) {
+                          setUpdatingId(selectedInvoice.id);
+                          try {
+                            await api.deletePayment(selectedInvoice.id);
+                            setSelectedInvoice(null);
+                            fetchPayments();
+                          } catch (err: any) {
+                            alert(err.message || "Failed to void invoice");
+                          } finally {
+                            setUpdatingId(null);
+                          }
+                        }
+                      }}
+                      className="text-red-600 border-red-200 hover:bg-red-50 hover:border-red-300 font-bold"
                     >
-                      {copiedInvoiceId === selectedInvoice.id ? "Link Copied!" : "Copy Payment Link"}
+                      Void Invoice
                     </Button>
                     <Button 
-                      variant="outline" 
-                      icon={Eye} 
-                      onClick={() => window.open(`${window.location.protocol}//${window.location.host}/pay/${selectedInvoice.id}`, '_blank')}
-                      className="font-semibold"
+                      variant="primary" 
+                      icon={CheckCircle} 
+                      disabled={updatingId === selectedInvoice.id} 
+                      onClick={() => handleMarkAsPaidAdmin(selectedInvoice.id)}
+                      className="font-bold shadow-brutal-sm border-2 border-foreground hover:translate-y-0 active:translate-y-0"
                     >
-                      Open Portal
+                      {updatingId === selectedInvoice.id ? "Settling..." : "Mark Paid"}
                     </Button>
-                    <Button variant="outline" icon={Printer} onClick={() => window.print()} className="font-semibold">
-                      Print
-                    </Button>
-                    {selectedInvoice.status !== "paid" && (
-                      <>
-                        <Button 
-                          variant="outline" 
-                          icon={AlertTriangle} 
-                          disabled={updatingId === selectedInvoice.id} 
-                          onClick={async () => {
-                            if (confirm("Are you sure you want to void and remove this invoice?")) {
-                              setUpdatingId(selectedInvoice.id);
-                              try {
-                                await api.deletePayment(selectedInvoice.id);
-                                setSelectedInvoice(null);
-                                fetchPayments();
-                              } catch (err: any) {
-                                alert(err.message || "Failed to void invoice");
-                              } finally {
-                                setUpdatingId(null);
-                              }
-                            }
-                          }}
-                          className="text-red-700 border-red-300 hover:bg-red-50 font-bold"
-                        >
-                          Void Invoice
-                        </Button>
-                        <Button 
-                          variant="primary" 
-                          icon={CheckCircle} 
-                          disabled={updatingId === selectedInvoice.id} 
-                          onClick={() => handleMarkAsPaidAdmin(selectedInvoice.id)}
-                          className="font-bold shadow-brutal-sm border border-foreground animate-pulse"
-                        >
-                          {updatingId === selectedInvoice.id ? "Settling..." : "Mark Paid"}
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

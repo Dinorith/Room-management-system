@@ -79,7 +79,7 @@ class GenerateMonthlyInvoices extends Command
                 // Check if invoice already exists for this contract and current month billing period
                 $exists = Payment::where('contract_id', $contract->id)
                     ->where('invoice_type', 'monthly_rent')
-                    ->whereDate('billing_period_start', now()->startOfMonth())
+                    ->where('month', $month)
                     ->exists();
 
                 if ($exists) {
@@ -96,8 +96,27 @@ class GenerateMonthlyInvoices extends Command
                     ? round((float)$utility->electricity_cost + (float)$utility->water_cost, 2)
                     : 0;
 
-                // Create recurring monthly invoice
-                $dueDate = now()->startOfMonth()->day($dueDay)->format('Y-m-d');
+                // Calculate custom check-in-based lease period & due date
+                $checkInDate = $contract->start_date 
+                    ? \Carbon\Carbon::parse($contract->start_date) 
+                    : ($contract->tenant->move_in_date 
+                        ? \Carbon\Carbon::parse($contract->tenant->move_in_date) 
+                        : now()->startOfMonth());
+
+                try {
+                    $targetDate = \Carbon\Carbon::parse($month);
+                } catch (\Exception $e) {
+                    $targetDate = now();
+                }
+
+                $checkInDay = $checkInDate->day;
+                $daysInMonth = $targetDate->daysInMonth;
+                $billingDay = min($checkInDay, $daysInMonth);
+                
+                $start = $targetDate->copy()->day($billingDay);
+                $billingPeriodStart = $start->format('Y-m-d');
+                $billingPeriodEnd = $start->copy()->addMonth()->format('Y-m-d');
+                $dueDate = $billingPeriodEnd;
 
                 Payment::create([
                     'tenant_id'            => $contract->tenant_id,
@@ -110,8 +129,8 @@ class GenerateMonthlyInvoices extends Command
                     'status'               => 'pending',
                     'month'                => $month,
                     'invoice_type'         => 'monthly_rent',
-                    'billing_period_start' => now()->startOfMonth()->format('Y-m-d'),
-                    'billing_period_end'   => now()->endOfMonth()->format('Y-m-d'),
+                    'billing_period_start' => $billingPeriodStart,
+                    'billing_period_end'   => $billingPeriodEnd,
                     'receipt_number'       => null,
                     'invoice_number'       => Payment::generateInvoiceNumber(),
                     'auto_generated'       => true,

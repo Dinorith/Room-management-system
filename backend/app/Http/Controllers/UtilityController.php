@@ -235,17 +235,39 @@ class UtilityController extends Controller
                 $days = max(1, $start->diffInDays($end));
                 $amount = $days * $room->rent;
             } else {
-                $billingPeriodStart = now()->startOfMonth()->format('Y-m-d');
-                $billingPeriodEnd = now()->endOfMonth()->format('Y-m-d');
+                $checkInDate = $contract?->start_date 
+                    ? \Carbon\Carbon::parse($contract->start_date) 
+                    : ($tenant->move_in_date 
+                        ? \Carbon\Carbon::parse($tenant->move_in_date) 
+                        : now()->startOfMonth());
+                
+                try {
+                    $targetDate = \Carbon\Carbon::parse($utility->month);
+                } catch (\Exception $e) {
+                    $targetDate = now();
+                }
+
+                $checkInDay = $checkInDate->day;
+                $daysInMonth = $targetDate->daysInMonth;
+                $billingDay = min($checkInDay, $daysInMonth);
+                
+                $start = $targetDate->copy()->day($billingDay);
+                $billingPeriodStart = $start->format('Y-m-d');
+                $billingPeriodEnd = $start->copy()->addMonth()->format('Y-m-d');
             }
 
             $settings = $this->scopeByOwner(Setting::query(), $request)->first() ?? Setting::first();
             $dueDay = $settings->invoice_due_day ?? 1;
-            $defaultDate = now()->startOfMonth()->day($dueDay);
-            if ($defaultDate->lt(now()->startOfDay())) {
-                $dueDate = now()->addDays($settings->grace_period_days ?? 5)->format('Y-m-d');
+
+            if ($billingCycle === 'daily') {
+                $defaultDate = now()->startOfMonth()->day($dueDay);
+                if ($defaultDate->lt(now()->startOfDay())) {
+                    $dueDate = now()->addDays($settings->grace_period_days ?? 5)->format('Y-m-d');
+                } else {
+                    $dueDate = $defaultDate->format('Y-m-d');
+                }
             } else {
-                $dueDate = $defaultDate->format('Y-m-d');
+                $dueDate = $billingPeriodEnd;
             }
 
             $payment = Payment::create([

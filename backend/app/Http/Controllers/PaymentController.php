@@ -31,9 +31,9 @@ class PaymentController extends Controller
         $settingsMap = Setting::whereIn('user_id', $ownerIds)->get()->keyBy('user_id');
 
         $payments->getCollection()->transform(function ($p) use ($settingsMap) {
-            // Dynamic overdue detection
+            // Dynamic overdue detection (monthly only)
             $status = $p->status;
-            if ($status === 'pending' && $p->due_date && $p->due_date->lt(now()->startOfDay())) {
+            if ($status === 'pending' && $p->invoice_type === 'monthly_rent' && $p->due_date && $p->due_date->lt(now()->startOfDay())) {
                 $status = 'overdue';
             }
 
@@ -77,6 +77,7 @@ class PaymentController extends Controller
     {
         // Include both explicitly overdue AND dynamically detected overdue
         $payments = $this->scopeByOwner(Payment::with(['tenant', 'room']), $request)
+            ->where('invoice_type', 'monthly_rent')
             ->where(function ($q) {
                 $q->where('status', 'overdue')
                   ->orWhere(function ($q2) {
@@ -120,17 +121,6 @@ class PaymentController extends Controller
         $tenant = \App\Models\Tenant::find($v['tenantId']);
         $settings = Setting::where('user_id', $request->user()->id)->first() ?? Setting::first();
         $dueDay = $settings->invoice_due_day ?? 1;
-        
-        $dueDate = $v['dueDate'] ?? null;
-        if (!$dueDate) {
-            $defaultDate = now()->startOfMonth()->day($dueDay);
-            // If the monthly due day has already passed, default to now + grace period days
-            if ($defaultDate->lt(now()->startOfDay())) {
-                $dueDate = now()->addDays($settings->grace_period_days ?? 5)->format('Y-m-d');
-            } else {
-                $dueDate = $defaultDate->format('Y-m-d');
-            }
-        }
 
         $contract = \App\Models\Contract::where('tenant_id', $v['tenantId'])
             ->where('status', 'active')
@@ -148,8 +138,40 @@ class PaymentController extends Controller
             $billingPeriodStart = $contract?->start_date ? $contract->start_date->format('Y-m-d') : ($tenant->move_in_date ?? now()->format('Y-m-d'));
             $billingPeriodEnd = $contract?->end_date ? $contract->end_date->format('Y-m-d') : ($tenant->move_out_date ?? now()->addDay()->format('Y-m-d'));
         } else {
-            $billingPeriodStart = now()->startOfMonth()->format('Y-m-d');
-            $billingPeriodEnd = now()->endOfMonth()->format('Y-m-d');
+            $checkInDate = $contract?->start_date 
+                ? \Carbon\Carbon::parse($contract->start_date) 
+                : ($tenant->move_in_date 
+                    ? \Carbon\Carbon::parse($tenant->move_in_date) 
+                    : now()->startOfMonth());
+
+            try {
+                $targetDate = \Carbon\Carbon::parse($v['month']);
+            } catch (\Exception $e) {
+                $targetDate = now();
+            }
+
+            $checkInDay = $checkInDate->day;
+            $daysInMonth = $targetDate->daysInMonth;
+            $billingDay = min($checkInDay, $daysInMonth);
+            
+            $start = $targetDate->copy()->day($billingDay);
+            $billingPeriodStart = $start->format('Y-m-d');
+            $billingPeriodEnd = $start->copy()->addMonth()->format('Y-m-d');
+        }
+
+        $dueDate = $v['dueDate'] ?? null;
+        if (!$dueDate) {
+            if ($billingCycle === 'daily') {
+                $defaultDate = now()->startOfMonth()->day($dueDay);
+                // If the monthly due day has already passed, default to now + grace period days
+                if ($defaultDate->lt(now()->startOfDay())) {
+                    $dueDate = now()->addDays($settings->grace_period_days ?? 5)->format('Y-m-d');
+                } else {
+                    $dueDate = $defaultDate->format('Y-m-d');
+                }
+            } else {
+                $dueDate = $billingPeriodEnd;
+            }
         }
 
         $payment = Payment::create([
@@ -225,7 +247,7 @@ class PaymentController extends Controller
             ->where('month', $month)->get()
             ->map(function ($p) {
                 $status = $p->status;
-                if ($status === 'pending' && $p->due_date && $p->due_date->lt(now()->startOfDay())) {
+                if ($status === 'pending' && $p->invoice_type === 'monthly_rent' && $p->due_date && $p->due_date->lt(now()->startOfDay())) {
                     $status = 'overdue';
                 }
                 return [

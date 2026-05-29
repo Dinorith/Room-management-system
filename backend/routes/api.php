@@ -18,6 +18,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\FileController;
 use App\Http\Controllers\SuperAdminController;
+use App\Http\Controllers\PaymentOptionController;
 
 /*
 |--------------------------------------------------------------------------
@@ -136,6 +137,9 @@ Route::middleware(['auth:sanctum', 'throttle:authenticated', 'ensure-active'])->
     Route::put('/settings', [SettingController::class, 'update']);
     Route::get('/settings/profile', [SettingController::class, 'profile']);
     Route::put('/settings/profile', [SettingController::class, 'updateProfile']);
+
+    // Payment Options
+    Route::apiResource('payment-options', PaymentOptionController::class);
 
     // Reports
     Route::prefix('reports')->group(function () {

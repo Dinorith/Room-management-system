@@ -14,6 +14,18 @@ const getStayDays = (payment: any) => {
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
 };
 
+const formatQrCodeUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("/storage")) return url;
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
+      return parsed.pathname;
+    }
+  } catch (e) {}
+  return url;
+};
+
 export function PublicPaymentPage() {
   const { paymentId } = useParams();
   const [payment, setPayment] = useState<any>(null);
@@ -22,7 +34,7 @@ export function PublicPaymentPage() {
   const [checkoutCompleted, setCheckoutCompleted] = useState(false);
   const [isSettling, setIsSettling] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
-  const [activeTab, setActiveTab] = useState<"instant" | "qr">("instant");
+  const [activeTab, setActiveTab] = useState<string>("instant");
 
   useEffect(() => {
     let active = true;
@@ -35,6 +47,9 @@ export function PublicPaymentPage() {
         if (!active) return;
 
         setPayment(res.data);
+        if (res.data?.paymentOptions && res.data.paymentOptions.length > 0) {
+          setActiveTab(res.data.paymentOptions[0].id);
+        }
         if (res.data.status === "paid") {
           setCheckoutCompleted(true);
           if (pollInterval) {
@@ -97,6 +112,24 @@ export function PublicPaymentPage() {
       setPayment((prev: any) => ({ 
         ...prev, 
         status: "paid", 
+        paidDate: res.data?.paid_date || res.data?.paidDate || new Date().toISOString().split('T')[0] 
+      }));
+      setCheckoutCompleted(true);
+    } catch (err: any) {
+      alert(err.message || "Failed to settle payment");
+    } finally {
+      setIsSettling(false);
+    }
+  };
+
+  const handleSettlePaymentWithMethod = async (method: string) => {
+    try {
+      setIsSettling(true);
+      const res = await api.post(`/tenant-portal/payments/${paymentId}/pay`, { paymentMethod: method });
+      setPayment((prev: any) => ({ 
+        ...prev, 
+        status: "paid", 
+        paymentMethod: method,
         paidDate: res.data?.paid_date || res.data?.paidDate || new Date().toISOString().split('T')[0] 
       }));
       setCheckoutCompleted(true);
@@ -323,141 +356,342 @@ export function PublicPaymentPage() {
                 </div>
 
                 {/* Tab Selectors */}
-                <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50">
-                  <button
-                    onClick={() => setActiveTab("instant")}
-                    className={`flex-1 py-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                      activeTab === "instant"
-                        ? "bg-white text-slate-900 shadow-md shadow-slate-900/5 border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    <Zap className="w-3.5 h-3.5" /> Direct Instant Pay
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("qr")}
-                    className={`flex-1 py-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                      activeTab === "qr"
-                        ? "bg-white text-slate-900 shadow-md shadow-slate-900/5 border border-slate-200/30"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    <Building2 className="w-3.5 h-3.5" /> Scan KHQR Code
-                  </button>
+                <div className="flex flex-wrap bg-slate-100 p-1.5 rounded-2xl border border-slate-200/50 gap-1">
+                  {payment.paymentOptions && payment.paymentOptions.length > 0 ? (
+                    payment.paymentOptions.map((opt: any) => (
+                      <button
+                        key={opt.id}
+                        onClick={() => setActiveTab(opt.id)}
+                        className={`flex-1 py-3 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 min-w-[120px] ${
+                          activeTab === opt.id
+                            ? "bg-white text-slate-900 shadow-md shadow-slate-900/5 border border-slate-200/30"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        <Building2 className="w-3.5 h-3.5" /> {opt.paymentType === "cash" ? opt.paymentMethodName : `${opt.bankName}`}
+                      </button>
+                    ))
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => setActiveTab("instant")}
+                        className={`flex-1 py-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                          activeTab === "instant"
+                            ? "bg-white text-slate-900 shadow-md shadow-slate-900/5 border border-slate-200/30"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        <Zap className="w-3.5 h-3.5" /> Direct Instant Pay
+                      </button>
+                      <button
+                        onClick={() => setActiveTab("qr")}
+                        className={`flex-1 py-3.5 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
+                          activeTab === "qr"
+                            ? "bg-white text-slate-900 shadow-md shadow-slate-900/5 border border-slate-200/30"
+                            : "text-slate-500 hover:text-slate-800"
+                        }`}
+                      >
+                        <Building2 className="w-3.5 h-3.5" /> Scan KHQR Code
+                      </button>
+                    </>
+                  )}
                 </div>
 
-                {activeTab === "instant" ? (
-                  /* Instant Pay Card */
-                  <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl border border-white/5 space-y-5 relative overflow-hidden">
-                    {/* Visual glowing backgrounds */}
-                    <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full bg-amber-500/10 blur-[40px] pointer-events-none" />
-                    <div className="absolute bottom-[-20%] left-[-20%] w-48 h-48 rounded-full bg-blue-500/10 blur-[40px] pointer-events-none" />
+                {(() => {
+                  if (payment.paymentOptions && payment.paymentOptions.length > 0) {
+                    const selectedOpt = payment.paymentOptions.find((o: any) => o.id === activeTab) || payment.paymentOptions[0];
+                    if (!selectedOpt) return null;
 
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Digital Settle Portal</p>
-                        <p className="text-xl font-black mt-1">RentFlow Direct Wallet</p>
-                      </div>
-                      <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/10">
-                        <Zap className="w-5 h-5 text-amber-400" />
-                      </div>
-                    </div>
+                    if (selectedOpt.paymentType === "static_qr") {
+                      return (
+                        <div className="space-y-4">
+                          <div className="bg-[#0b2d49] text-white rounded-[2rem] p-5 shadow-lg border border-white/5 space-y-4">
+                            <div className="flex items-center justify-between pb-3 border-b border-[#1c3e5c]">
+                              <span className="text-sm font-black tracking-widest text-[#E6B012]">KHQR Code ({selectedOpt.currency})</span>
+                              <span className="text-[10px] text-gray-300 font-extrabold uppercase tracking-wider">{selectedOpt.bankName}</span>
+                            </div>
 
-                    <div className="bg-white/5 rounded-2xl p-4.5 border border-white/10 backdrop-blur-md space-y-3">
-                      <div className="flex justify-between text-xs text-gray-400 font-medium">
-                        <span>Invoice Reference</span>
-                        <span className="font-mono text-white font-bold">{refCode}</span>
-                      </div>
-                      <div className="flex justify-between text-xs text-gray-400 font-medium">
-                        <span>Associated Unit</span>
-                        <span className="text-white font-bold">Room {payment.roomNumber}</span>
-                      </div>
-                      <div className="h-px bg-white/10 my-1" />
-                      <div className="flex justify-between items-baseline">
-                        <span className="text-xs text-gray-300 font-medium">Total Settlement</span>
-                        <span className="text-2xl font-black text-amber-400 font-mono">${payment.total.toFixed(2)}</span>
-                      </div>
-                    </div>
+                            <div className="text-center space-y-1">
+                              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Account: {selectedOpt.accountName}</p>
+                              {selectedOpt.accountNumber && <p className="text-sm font-mono text-gray-350">{selectedOpt.accountNumber}</p>}
+                              <p className="text-3xl font-black text-white font-mono mt-2">
+                                {selectedOpt.currency === "KHR" ? "៛" : "$"}{payment.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </p>
+                              <p className="text-[9px] font-mono text-gray-405">Ref: {refCode}</p>
+                            </div>
 
-                    <button
-                      onClick={handleSettlePayment}
-                      disabled={isSettling}
-                      className="w-full bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-500 hover:to-amber-400 text-slate-950 rounded-full py-4 text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-400/20 active:scale-[0.98] disabled:opacity-50 relative overflow-hidden group"
-                    >
-                      {isSettling ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                          Processing Settlement...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> Pay & Settle Instantly
-                        </>
-                      )}
-                    </button>
-                    
-                    <p className="text-center text-[10px] text-gray-400 leading-relaxed font-semibold">
-                      🔒 Secured via RentFlow PMS. Click the button to instantly record your payment and lock it into the general ledger.
-                    </p>
-                  </div>
-                ) : (
-                  /* Standard KHQR scan card */
-                  <div className="space-y-4">
-                    {/* ABA KHQR Frame */}
-                    <div className="bg-[#0b2d49] text-white rounded-[2rem] p-5 shadow-lg border border-white/5 space-y-4">
-                      <div className="flex items-center justify-between pb-3 border-b border-[#1c3e5c]">
-                        <span className="text-sm font-black tracking-widest text-[#E6B012]">KHQR</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[8px] text-gray-400 font-extrabold tracking-wider">CAMBODIA</span>
+                            {/* Dynamic Uploaded QR Image */}
+                            <div className="bg-white rounded-[1.75rem] p-4 flex items-center justify-center relative shadow-inner">
+                              <div className="w-36 h-36 md:w-40 md:h-40 relative flex items-center justify-center">
+                                <img 
+                                  src={formatQrCodeUrl(selectedOpt.qrCode)}
+                                  alt="Landlord QR Settle Code" 
+                                  className="max-w-full max-h-full object-contain rounded-2xl"
+                                />
+                              </div>
+                            </div>
+
+                            {selectedOpt.remark && (
+                              <p className="text-center text-xs text-gray-350 italic px-2 leading-relaxed">
+                                {selectedOpt.remark}
+                              </p>
+                            )}
+
+                            <p className="text-center text-[9px] text-gray-450 tracking-wider font-extrabold uppercase leading-snug">
+                              Open your Mobile Banking App<br />to scan & settle instantly
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => handleSettlePaymentWithMethod(selectedOpt.paymentMethodName || `${selectedOpt.bankName} Static QR`)}
+                            disabled={isSettling}
+                            className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-full py-3.5 md:py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-amber-400/20 active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {isSettling ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                                Recording Settle...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> I've Completed Payment
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    if (selectedOpt.paymentType === "bank_transfer") {
+                      return (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                          <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl border border-white/5 space-y-5 relative overflow-hidden">
+                            {/* Visual glowing backgrounds */}
+                            <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full bg-blue-550/10 blur-[40px] pointer-events-none" />
+
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Bank Wire Transfer</p>
+                                <h4 className="text-lg font-black mt-1 text-white">{selectedOpt.bankName}</h4>
+                              </div>
+                              <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center border border-white/10">
+                                <Building2 className="w-5 h-5 text-blue-400" />
+                              </div>
+                            </div>
+
+                            <div className="bg-white/5 rounded-2xl p-4.5 border border-white/10 backdrop-blur-md space-y-3 font-medium">
+                              <div className="flex justify-between text-xs text-gray-400">
+                                <span>Account Name</span>
+                                <span className="text-white font-bold">{selectedOpt.accountName}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-400">
+                                <span>Account Number</span>
+                                <span className="text-white font-bold font-mono">{selectedOpt.accountNumber}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-400">
+                                <span>Currency</span>
+                                <span className="text-white font-bold">{selectedOpt.currency}</span>
+                              </div>
+                              <div className="flex justify-between text-xs text-gray-400">
+                                <span>Reference Code</span>
+                                <span className="text-white font-bold font-mono">{refCode}</span>
+                              </div>
+                              <div className="h-px bg-white/10 my-1" />
+                              <div className="flex justify-between items-baseline">
+                                <span className="text-xs text-gray-300">Total Settle Rate</span>
+                                <span className="text-2xl font-black text-amber-400 font-mono">
+                                  {selectedOpt.currency === "KHR" ? "៛" : "$"}{payment.total.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
+                            {selectedOpt.remark && (
+                              <div className="text-xs text-gray-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/5 italic">
+                                📌 {selectedOpt.remark}
+                              </div>
+                            )}
+
+                            <button
+                              onClick={() => handleSettlePaymentWithMethod(`${selectedOpt.bankName} Wire Transfer`)}
+                              disabled={isSettling}
+                              className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white rounded-full py-4 text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-blue-500/20 active:scale-[0.98] disabled:opacity-50"
+                            >
+                              {isSettling ? (
+                                <>
+                                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  Recording Settle...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> I've Done the Transfer
+                                </>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    if (selectedOpt.paymentType === "cash") {
+                      return (
+                        <div className="space-y-4 animate-in fade-in duration-200">
+                          <div className="bg-amber-50 border border-amber-250 rounded-[2rem] p-6 space-y-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-amber-100 rounded-2xl flex items-center justify-center border border-amber-250">
+                                <DollarSign className="w-5 h-5 text-amber-700" />
+                              </div>
+                              <div>
+                                <h4 className="text-base font-black text-amber-950">{selectedOpt.paymentMethodName || "Cash Payment"}</h4>
+                                <p className="text-[10px] text-amber-700 font-bold uppercase tracking-wider">No Bank Transfer or Online clearing needed</p>
+                              </div>
+                            </div>
+
+                            {selectedOpt.remark && (
+                              <div className="bg-white/80 rounded-2xl p-4 border border-amber-200/50 text-sm text-slate-850 leading-relaxed font-semibold">
+                                " {selectedOpt.remark} "
+                              </div>
+                            )}
+
+                            <div className="text-xs text-slate-500 leading-relaxed font-medium">
+                              💵 Once you submit cash to the office, the property manager will instantly record and verify the transaction in the ledger, sending a receipt directly to your portal.
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => handleSettlePaymentWithMethod(selectedOpt.paymentMethodName || "Cash")}
+                            disabled={isSettling}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white rounded-full py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-slate-950/20 active:scale-[0.98] disabled:opacity-50"
+                          >
+                            {isSettling ? (
+                              <>
+                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                Submitting Request...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> Settle via Cash
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return null;
+                  }
+
+                  // Standard Fallback rendering
+                  return activeTab === "instant" ? (
+                    <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-xl border border-white/5 space-y-5 relative overflow-hidden">
+                      {/* Visual glowing backgrounds */}
+                      <div className="absolute top-[-20%] right-[-20%] w-48 h-48 rounded-full bg-amber-500/10 blur-[40px] pointer-events-none" />
+                      <div className="absolute bottom-[-20%] left-[-20%] w-48 h-48 rounded-full bg-blue-500/10 blur-[40px] pointer-events-none" />
+
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-extrabold uppercase tracking-widest">Digital Settle Portal</p>
+                          <p className="text-xl font-black mt-1">RentFlow Direct Wallet</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center backdrop-blur-sm border border-white/10">
+                          <Zap className="w-5 h-5 text-amber-400" />
                         </div>
                       </div>
 
-                      <div className="text-center space-y-1">
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">RentFlow Direct Transfer</p>
-                        <p className="text-3xl font-black text-white font-mono">${payment.total.toFixed(2)}</p>
-                        <p className="text-[9px] font-mono text-gray-400">Ref: {refCode}</p>
+                      <div className="bg-white/5 rounded-2xl p-4.5 border border-white/10 backdrop-blur-md space-y-3">
+                        <div className="flex justify-between text-xs text-gray-400 font-medium">
+                          <span>Invoice Reference</span>
+                          <span className="font-mono text-white font-bold">{refCode}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-gray-400 font-medium">
+                          <span>Associated Unit</span>
+                          <span className="text-white font-bold">Room {payment.roomNumber}</span>
+                        </div>
+                        <div className="h-px bg-white/10 my-1" />
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-xs text-gray-300 font-medium">Total Settlement</span>
+                          <span className="text-2xl font-black text-amber-400 font-mono">${payment.total.toFixed(2)}</span>
+                        </div>
                       </div>
 
-                      {/* QR Target SVG */}
-                      <div className="bg-white rounded-[1.75rem] p-4 flex items-center justify-center relative shadow-inner">
-                        <div className="w-36 h-36 md:w-40 md:h-40 relative">
-                          <img 
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.protocol}//${window.location.host}/pay/${paymentId}?scan=true`)}`}
-                            alt="KHQR Settle Code" 
-                            className="w-full h-full object-contain rounded-2xl"
-                          />
-                          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
-                            <div className="w-8.5 h-5.5 bg-[#0b2d49] rounded-md flex items-center justify-center text-[7px] font-black text-[#E6B012] tracking-widest uppercase">
-                              DEMO
+                      <button
+                        onClick={handleSettlePayment}
+                        disabled={isSettling}
+                        className="w-full bg-gradient-to-r from-amber-400 to-amber-300 hover:from-amber-500 hover:to-amber-400 text-slate-950 rounded-full py-4 text-sm font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-400/20 active:scale-[0.98] disabled:opacity-50 relative overflow-hidden group"
+                      >
+                        {isSettling ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                            Processing Settlement...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> Pay & Settle Instantly
+                          </>
+                        )}
+                      </button>
+                      
+                      <p className="text-center text-[10px] text-gray-400 leading-relaxed font-semibold">
+                        🔒 Secured via RentFlow PMS. Click the button to instantly record your payment and lock it into the general ledger.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* ABA KHQR Frame */}
+                      <div className="bg-[#0b2d49] text-white rounded-[2rem] p-5 shadow-lg border border-white/5 space-y-4">
+                        <div className="flex items-center justify-between pb-3 border-b border-[#1c3e5c]">
+                          <span className="text-sm font-black tracking-widest text-[#E6B012]">KHQR</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[8px] text-gray-400 font-extrabold tracking-wider">CAMBODIA</span>
+                          </div>
+                        </div>
+
+                        <div className="text-center space-y-1">
+                          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">RentFlow Direct Transfer</p>
+                          <p className="text-3xl font-black text-white font-mono">${payment.total.toFixed(2)}</p>
+                          <p className="text-[9px] font-mono text-gray-400">Ref: {refCode}</p>
+                        </div>
+
+                        {/* QR Target SVG */}
+                        <div className="bg-white rounded-[1.75rem] p-4 flex items-center justify-center relative shadow-inner">
+                          <div className="w-36 h-36 md:w-40 md:h-40 relative">
+                            <img 
+                              src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.protocol}//${window.location.host}/pay/${paymentId}?scan=true`)}`}
+                              alt="KHQR Settle Code" 
+                              className="w-full h-full object-contain rounded-2xl"
+                            />
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-7 bg-white rounded-lg shadow border border-gray-100 flex items-center justify-center">
+                              <div className="w-8.5 h-5.5 bg-[#0b2d49] rounded-md flex items-center justify-center text-[7px] font-black text-[#E6B012] tracking-widest uppercase">
+                                DEMO
+                              </div>
                             </div>
                           </div>
                         </div>
+
+                        <p className="text-center text-[9px] text-gray-450 tracking-wider font-extrabold uppercase leading-snug">
+                          Open your Mobile Banking App<br />to scan & settle instantly
+                        </p>
                       </div>
 
-                      <p className="text-center text-[9px] text-gray-400 tracking-wider font-extrabold uppercase leading-snug">
-                        Open your Mobile Banking App<br />to scan & settle instantly
-                      </p>
+                      {/* Settle confirmation button */}
+                      <button
+                        onClick={handleSettlePayment}
+                        disabled={isSettling}
+                        className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-full py-3.5 md:py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-amber-400/20 active:scale-[0.98] disabled:opacity-50"
+                      >
+                        {isSettling ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                            Recording Settle...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> I've Completed Payment
+                          </>
+                        )}
+                      </button>
                     </div>
-
-                    {/* Settle confirmation button */}
-                    <button
-                      onClick={handleSettlePayment}
-                      disabled={isSettling}
-                      className="w-full bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-full py-3.5 md:py-4 text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md shadow-amber-400/20 active:scale-[0.98] disabled:opacity-50"
-                    >
-                      {isSettling ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
-                          Recording Settle...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle2 className="w-4.5 h-4.5 shrink-0" /> I've Completed Payment
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
+                  );
+                })()}
               </div>
             </div>
           ) : (

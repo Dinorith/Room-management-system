@@ -323,6 +323,21 @@ class TenantPortalController extends Controller
             return $this->error('Invoice not found', 'not_found', null, 404);
         }
 
+        $paymentOptions = \App\Models\PaymentOption::where('user_id', $p->user_id)
+            ->where('is_active', true)
+            ->get()
+            ->map(fn($o) => [
+                'id' => $o->id,
+                'paymentType' => $o->payment_type,
+                'paymentMethodName' => $o->payment_method_name,
+                'bankName' => $o->bank_name,
+                'accountName' => $o->account_name,
+                'accountNumber' => $o->account_number,
+                'currency' => $o->currency,
+                'qrCode' => $o->qr_code,
+                'remark' => $o->remark,
+            ]);
+
         return $this->success([
             'id' => $p->id,
             'invoiceNumber' => $p->invoice_number ?? ('INV-' . strtoupper(substr($p->id, 0, 8))),
@@ -343,6 +358,7 @@ class TenantPortalController extends Controller
             'billingCycle' => $p->room->roomType->billing_cycle ?? $p->contract->billing_cycle ?? 'monthly',
             'billingPeriodStart' => $p->billing_period_start ? $p->billing_period_start->toDateString() : null,
             'billingPeriodEnd' => $p->billing_period_end ? $p->billing_period_end->toDateString() : null,
+            'paymentOptions' => $paymentOptions,
         ], 'Invoice details retrieved successfully');
     }
 
