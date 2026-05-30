@@ -41,17 +41,38 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Remove unique constraint from invoice_number before dropping (SQLite issue)
+        try {
+            Schema::table('payments', function (Blueprint $table) {
+                if (Schema::hasColumn('payments', 'contract_id')) {
+                    $table->dropForeign(['contract_id']);
+                }
+            });
+        } catch (\Exception $e) {
+            // Ignore if constraint doesn't exist
+        }
+
         Schema::table('payments', function (Blueprint $table) {
+            $columnsToDropInPayments = [];
             if (Schema::hasColumn('payments', 'contract_id')) {
-                $table->dropForeign(['contract_id']);
+                $columnsToDropInPayments[] = 'contract_id';
             }
-            $table->dropColumn(array_filter([
-                Schema::hasColumn('payments', 'contract_id') ? 'contract_id' : null,
-                Schema::hasColumn('payments', 'invoice_type') ? 'invoice_type' : null,
-                Schema::hasColumn('payments', 'billing_period_start') ? 'billing_period_start' : null,
-                Schema::hasColumn('payments', 'billing_period_end') ? 'billing_period_end' : null,
-                Schema::hasColumn('payments', 'invoice_number') ? 'invoice_number' : null,
-            ]));
+            if (Schema::hasColumn('payments', 'invoice_type')) {
+                $columnsToDropInPayments[] = 'invoice_type';
+            }
+            if (Schema::hasColumn('payments', 'billing_period_start')) {
+                $columnsToDropInPayments[] = 'billing_period_start';
+            }
+            if (Schema::hasColumn('payments', 'billing_period_end')) {
+                $columnsToDropInPayments[] = 'billing_period_end';
+            }
+            if (Schema::hasColumn('payments', 'invoice_number')) {
+                $columnsToDropInPayments[] = 'invoice_number';
+            }
+            
+            if (!empty($columnsToDropInPayments)) {
+                $table->dropColumn($columnsToDropInPayments);
+            }
         });
 
         Schema::table('contracts', function (Blueprint $table) {
