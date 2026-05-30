@@ -144,16 +144,21 @@ class ApiClient {
     const url = `${API_BASE_URL}${endpoint}`;
     const requestPromise = (async () => {
       let response;
+      const method = options.method || 'GET';
+      console.log(`📤 API ${method} ${endpoint}`, { url, hasToken: !!this.token });
+      
       try {
         response = await fetch(url, {
           ...options,
           headers,
         });
       } catch (e: any) {
+        console.error(`❌ Network Error: ${e.message}`);
         throw new Error(`Network Error: Failed to connect to ${url}. Make sure your local backend server is running and CORS is configured.`);
       }
 
       if (response.status === 401) {
+        console.warn('⚠️ Unauthorized - Token invalid or expired');
         this.setToken(null);
         window.location.href = '/login';
         throw new Error('Unauthenticated');
@@ -166,16 +171,20 @@ class ApiClient {
         data = JSON.parse(responseText);
       } catch (e) {
         const sample = responseText ? responseText.substring(0, 120) : '(empty)';
+        console.error(`❌ Invalid JSON response: ${sample}`);
         throw new Error(`API Error: Response from ${url} (Status ${response.status}) is not JSON. Response: "${sample}"`);
       }
 
       if (!response.ok) {
+        console.error(`❌ API Error ${response.status}:`, data);
         throw {
           status: response.status,
           message: data.message || 'An error occurred',
           errors: data.details || {},
         };
       }
+      
+      console.log(`✅ API ${method} ${endpoint} Success:`, data);
 
       // Cache successful GET responses
       if (!options.method || options.method === 'GET') {

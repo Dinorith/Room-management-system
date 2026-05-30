@@ -49,19 +49,33 @@ export function Expenses() {
   useEffect(() => { fetchExpenses(); }, []);
 
   const handleAddExpense = async () => {
-    if (!newExpense.description || !newExpense.amount || !newExpense.date) return;
+    if (!newExpense.description || !newExpense.amount || !newExpense.date) {
+      setError("Please fill in all required fields");
+      return;
+    }
     setError("");
     try {
-      await api.createExpense({
+      const response = await api.createExpense({
         category: newExpense.category,
         description: newExpense.description,
         amount: parseFloat(newExpense.amount),
         date: newExpense.date,
       });
+      console.log("✓ Expense created:", response);
       setShowAddModal(false);
       setNewExpense({ category: "repairs", description: "", amount: "", date: "" });
       fetchExpenses();
-    } catch (err: any) { setError(err.message || "Failed to add expense"); }
+    } catch (err: any) {
+      console.error("✗ Expense creation failed:", err);
+      let errorMsg = "Failed to add expense";
+      if (err.errors && typeof err.errors === 'object') {
+        const msgs = Object.values(err.errors).flat().join(", ");
+        errorMsg = msgs || err.message || errorMsg;
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      setError(errorMsg);
+    }
   };
 
   const handleDelete = async (id: string) => {

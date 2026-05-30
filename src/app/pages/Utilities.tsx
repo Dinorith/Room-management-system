@@ -28,18 +28,26 @@ export function Utilities() {
 
   const handleSaveReading = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.room || !formData.electricity || !formData.water) { alert("Please fill in all fields"); return; }
+    if (!formData.room || !formData.electricity || !formData.water) { 
+      alert("Please fill in all fields"); 
+      return; 
+    }
 
     try {
-      await api.createUtility({
+      const response = await api.createUtility({
         room: formData.room,
         electricity: parseFloat(formData.electricity),
         water: parseFloat(formData.water),
         month: new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }),
       });
+      console.log("✓ Utility reading saved:", response);
       setFormData({ room: "", electricity: "", water: "" });
       fetchData();
-    } catch (err: any) { alert(err.message || "Failed to save reading"); }
+    } catch (err: any) { 
+      console.error("✗ Failed to save utility reading:", err);
+      const errorMsg = err.message || err.details?.room?.[0] || "Failed to save reading";
+      alert(errorMsg); 
+    }
   };
 
   const handleLinkToInvoice = async (id: string) => {
