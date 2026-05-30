@@ -36,31 +36,16 @@ if [ "$RUN_MIGRATIONS" = "true" ]; then
 
     echo "Checking if database needs seeding..."
     php artisan tinker --execute="
-        if (\App\Models\Payment::count() === 0) {
-            echo 'Wiping and seeding fresh database...';
-            // Disable foreign key checks for clean truncation across drivers
-            if (DB::getDriverName() === 'sqlite') {
-                DB::statement('PRAGMA foreign_keys = OFF');
-            } elseif (DB::getDriverName() === 'mysql') {
-                DB::statement('SET FOREIGN_KEY_CHECKS = 0');
-            } elseif (DB::getDriverName() === 'pgsql') {
-                DB::statement('SET CONSTRAINTS ALL DEFERRED');
+        try {
+            if (\App\Models\User::count() === 0) {
+                echo 'Database is empty, seeding...';
+                \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
+                echo 'Database seeded successfully.';
+            } else {
+                echo 'Database already has data, skipping seed.';
             }
-            
-            // Truncate existing tables to avoid duplicate key violations from a crashed seed
-            \App\Models\User::truncate();
-            \App\Models\Setting::truncate();
-            \App\Models\Room::truncate();
-            \App\Models\Tenant::truncate();
-            \App\Models\Contract::truncate();
-            \App\Models\MaintenanceRequest::truncate();
-            \App\Models\Expense::truncate();
-            \App\Models\Utility::truncate();
-            
-            \Illuminate\Support\Facades\Artisan::call('db:seed', ['--force' => true]);
-            echo 'Database seeded successfully.';
-        } else {
-            echo 'Database already seeded with payments.';
+        } catch (\Exception \$e) {
+            echo 'Error during seeding: ' . \$e->getMessage();
         }
     "
 fi

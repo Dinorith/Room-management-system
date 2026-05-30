@@ -56,7 +56,13 @@ RentFlow is a full-stack multi-owner SaaS platform for managing rental propertie
 
 ---
 
-## Local Setup & Installation
+## Local Setup & Installation (Development)
+
+### Prerequisites
+- Node.js 16+ and npm/pnpm
+- PHP 8.2+
+- Composer
+- Optional: MySQL (or use SQLite for local development)
 
 ### 1. Clone the Repository
 
@@ -65,41 +71,25 @@ git clone https://github.com/Dinorith/Room-management-system.git
 cd Room-management-system
 ```
 
----
-
-### 2. Backend Installation
+### 2. Backend Setup (LocalDevelopment with SQLite)
 
 ```bash
 cd backend
+
+# Install dependencies
 composer install
-copy .env.example .env
+
+# Copy environment file
+cp .env.example .env
+
+# Generate APP_KEY
 php artisan key:generate
-```
 
-Create a MySQL database named `room-rent`, then configure `.env`:
+# Run migrations (SQLite will be created automatically)
+php artisan migrate
 
-```ini
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=room-rent
-DB_USERNAME=root
-DB_PASSWORD=your_mysql_password_here
-
-# Gmail SMTP (optional, for email alerts)
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=465
-MAIL_USERNAME=your_gmail@gmail.com
-MAIL_PASSWORD=your_16_char_app_password
-MAIL_ENCRYPTION=ssl
-MAIL_FROM_ADDRESS="your_gmail@gmail.com"
-```
-
-Run migrations and seed demo data:
-
-```bash
-php artisan migrate --seed
+# Seed demo data
+php artisan db:seed
 ```
 
 **Default Accounts:**
@@ -107,33 +97,73 @@ php artisan migrate --seed
 | Role | Email | Password |
 |------|-------|----------|
 | Super Admin | `superadmin@rentflow.com` | `password` |
-| Sample Owner / Landlord | `owner@rentflow.com` | `password` |
+| Sample Owner | `owner@rentflow.com` | `password` |
+| Test Tenant User | `rith@rentflow.com` | `password` |
 
----
-
-### 3. Frontend Installation
+### 3. Frontend Setup
 
 ```bash
 cd ..
+
+# Install dependencies
 npm install
+# or if using pnpm:
+pnpm install
+
+# Create .env.local (optional, for custom API URL):
+echo "VITE_API_URL=http://localhost:8000/api" > .env.local
 ```
+
+### 4. Running Locally (Development Mode)
+
+Open **two terminals** in the project root:
+
+**Terminal 1 — Frontend (React)**:
+```bash
+npm run dev
+# Opens at http://localhost:5173
+```
+
+**Terminal 2 — Backend (Laravel API)**:
+```bash
+cd backend
+php artisan serve
+# Runs at http://localhost:8000
+```
+
+Then open **http://localhost:5173** in your browser and login with the demo accounts above.
 
 ---
 
-### 4. Running the Application
+## Production Deployment
 
-**Start both servers simultaneously (recommended):**
+### For Railway / Heroku / Docker Deployment
 
+See [backend/README.md](./backend/README.md) for detailed production deployment instructions.
+
+**Key steps:**
+1. Set production environment variables in your deployment platform
+2. The Docker image is pre-configured to:
+   - Run migrations automatically
+   - Configure Nginx
+   - Enable security headers
+   - Support dynamic ports
+
+**Quick example for Railway:**
 ```bash
-# Terminal 1 — Frontend (from root directory)
-npm run dev
-
-# Terminal 2 — Backend (from backend/ directory)
-cd backend
-php artisan serve
+# Just push to Railway and set these environment variables:
+APP_ENV=production
+APP_DEBUG=false
+APP_KEY=base64:xxxxx
+DB_CONNECTION=mysql  # or pgsql
+DB_HOST=your-db-host
+FRONTEND_URL=https://your-frontend.com
+RUN_MIGRATIONS=true
 ```
 
-Open **http://localhost:5173** in your browser.
+### For Manual Server Setup
+
+See [backend/README.md](./backend/README.md) for manual PHP server setup, Nginx configuration, and SSL setup.
 
 ---
 
