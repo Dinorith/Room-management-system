@@ -3,8 +3,33 @@ const API_BASE_URL = import.meta.env.VITE_API_URL ||
     ? '/api'
     : 'https://room-rent-backend-production-7530.up.railway.app/api');
 
+interface CacheEntry<T> {
+  data: T;
+  timestamp: number;
+  ttl: number;
+}
+
 class ApiClient {
   private token: string | null = null;
+  private cache: Map<string, CacheEntry<any>> = new Map();
+  private pendingRequests: Map<string, Promise<any>> = new Map();
+  
+  // Cache TTL in milliseconds (default: 30 seconds)
+  private defaultTTL = 30000;
+  
+  // Endpoints with custom TTL settings
+  private cacheTTLConfig: Record<string, number> = {
+    '/dashboard/overview': 30000,      // 30 seconds
+    '/dashboard/alerts': 30000,        // 30 seconds
+    '/payments': 60000,                // 60 seconds
+    '/tenants': 60000,                 // 60 seconds
+    '/rooms': 60000,                   // 60 seconds
+    '/contracts': 60000,               // 60 seconds
+    '/maintenance': 60000,             // 60 seconds
+    '/expenses': 60000,                // 60 seconds
+    '/utilities': 60000,               // 60 seconds
+    '/reports': 120000,                // 120 seconds
+  };
 
   constructor() {
     this.token = localStorage.getItem('auth_token');
@@ -23,10 +48,83 @@ class ApiClient {
     return this.token;
   }
 
+  private getCacheTTL(endpoint: string): number {
+    for (const [pattern, ttl] of Object.entries(this.cacheTTLConfig)) {
+      if (endpoint.startsWith(pattern)) {
+        return ttl;
+      }
+    }
+    return this.defaultTTL;
+  }
+
+  private getCacheKey(endpoint: string): string {
+    return `cache_${endpoint}`;
+  }
+
+  private isCacheValid<T>(entry: CacheEntry<T>): boolean {
+    return Date.now() - entry.timestamp < entry.ttl;
+  }
+
+  private getCachedData<T>(endpoint: string): T | null {
+    const key = this.getCacheKey(endpoint);
+    const entry = this.cache.get(key);
+    
+    if (entry && this.isCacheValid(entry)) {
+      return entry.data as T;
+    }
+    
+    // Clear expired cache
+    if (entry) {
+      this.cache.delete(key);
+    }
+    
+    return null;
+  }
+
+  private setCachedData<T>(endpoint: string, data: T): void {
+    const key = this.getCacheKey(endpoint);
+    const ttl = this.getCacheTTL(endpoint);
+    
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now(),
+      ttl,
+    });
+  }
+
+  clearCache(pattern?: string): void {
+    if (!pattern) {
+      this.cache.clear();
+      return;
+    }
+
+    // Clear cache entries matching the pattern
+    for (const key of this.cache.keys()) {
+      if (key.includes(pattern)) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
   private async request<T>(
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
+    // For GET requests, check cache first
+    if (!options.method || options.method === 'GET') {
+      // Check in-flight requests to avoid duplicate requests
+      const pendingKey = `pending_${endpoint}`;
+      if (this.pendingRequests.has(pendingKey)) {
+        return this.pendingRequests.get(pendingKey)!;
+      }
+
+      // Check cache
+      const cached = this.getCachedData<T>(endpoint);
+      if (cached) {
+        return cached;
+      }
+    }
+
     const headers: Record<string, string> = {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
@@ -44,41 +142,59 @@ class ApiClient {
     }
 
     const url = `${API_BASE_URL}${endpoint}`;
-    let response;
-    try {
-      response = await fetch(url, {
-        ...options,
-        headers,
+    const requestPromise = (async () => {
+      let response;
+      try {
+        response = await fetch(url, {
+          ...options,
+          headers,
+        });
+      } catch (e: any) {
+        throw new Error(`Network Error: Failed to connect to ${url}. Make sure your local backend server is running and CORS is configured.`);
+      }
+
+      if (response.status === 401) {
+        this.setToken(null);
+        window.location.href = '/login';
+        throw new Error('Unauthenticated');
+      }
+
+      let data;
+      let responseText = '';
+      try {
+        responseText = await response.text();
+        data = JSON.parse(responseText);
+      } catch (e) {
+        const sample = responseText ? responseText.substring(0, 120) : '(empty)';
+        throw new Error(`API Error: Response from ${url} (Status ${response.status}) is not JSON. Response: "${sample}"`);
+      }
+
+      if (!response.ok) {
+        throw {
+          status: response.status,
+          message: data.message || 'An error occurred',
+          errors: data.details || {},
+        };
+      }
+
+      // Cache successful GET responses
+      if (!options.method || options.method === 'GET') {
+        this.setCachedData(endpoint, data);
+      }
+
+      return data;
+    })();
+
+    // Track in-flight request for GET requests
+    if (!options.method || options.method === 'GET') {
+      const pendingKey = `pending_${endpoint}`;
+      this.pendingRequests.set(pendingKey, requestPromise);
+      requestPromise.finally(() => {
+        this.pendingRequests.delete(pendingKey);
       });
-    } catch (e: any) {
-      throw new Error(`Network Error: Failed to connect to ${url}. Make sure your local backend server is running and CORS is configured.`);
     }
 
-    if (response.status === 401) {
-      this.setToken(null);
-      window.location.href = '/login';
-      throw new Error('Unauthenticated');
-    }
-
-    let data;
-    let responseText = '';
-    try {
-      responseText = await response.text();
-      data = JSON.parse(responseText);
-    } catch (e) {
-      const sample = responseText ? responseText.substring(0, 120) : '(empty)';
-      throw new Error(`API Error: Response from ${url} (Status ${response.status}) is not JSON. Response: "${sample}"`);
-    }
-
-    if (!response.ok) {
-      throw {
-        status: response.status,
-        message: data.message || 'An error occurred',
-        errors: data.details || {},
-      };
-    }
-
-    return data;
+    return requestPromise;
   }
 
   // Auth
@@ -140,21 +256,30 @@ class ApiClient {
   }
 
   async createTenant(data: any) {
-    return this.request<any>('/tenants', {
+    const result = await this.request<any>('/tenants', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('tenant');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async updateTenant(id: string, data: any) {
-    return this.request<any>(`/tenants/${id}`, {
+    const result = await this.request<any>(`/tenants/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    this.clearCache('tenant');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async deleteTenant(id: string) {
-    return this.request<any>(`/tenants/${id}`, { method: 'DELETE' });
+    const result = await this.request<any>(`/tenants/${id}`, { method: 'DELETE' });
+    this.clearCache('tenant');
+    this.clearCache('dashboard');
+    return result;
   }
 
   // Rooms
@@ -168,21 +293,30 @@ class ApiClient {
   }
 
   async createRoom(data: any) {
-    return this.request<any>('/rooms', {
+    const result = await this.request<any>('/rooms', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('room');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async updateRoom(id: string, data: any) {
-    return this.request<any>(`/rooms/${id}`, {
+    const result = await this.request<any>(`/rooms/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    this.clearCache('room');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async deleteRoom(id: string) {
-    return this.request<any>(`/rooms/${id}`, { method: 'DELETE' });
+    const result = await this.request<any>(`/rooms/${id}`, { method: 'DELETE' });
+    this.clearCache('room');
+    this.clearCache('dashboard');
+    return result;
   }
 
   // Payments
@@ -194,23 +328,32 @@ class ApiClient {
 
 
   async createPayment(data: any) {
-    return this.request<any>('/payments', {
+    const result = await this.request<any>('/payments', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('payment');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async updatePayment(id: string, data: any) {
-    return this.request<any>(`/payments/${id}`, {
+    const result = await this.request<any>(`/payments/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    this.clearCache('payment');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async deletePayment(id: string) {
-    return this.request<any>(`/payments/${id}`, {
+    const result = await this.request<any>(`/payments/${id}`, {
       method: 'DELETE',
     });
+    this.clearCache('payment');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async getPaymentSchedule(month: string) {
@@ -240,17 +383,23 @@ class ApiClient {
   }
 
   async createMaintenance(data: any) {
-    return this.request<any>('/maintenance', {
+    const result = await this.request<any>('/maintenance', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('maintenance');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async updateMaintenance(id: string, data: any) {
-    return this.request<any>(`/maintenance/${id}`, {
+    const result = await this.request<any>(`/maintenance/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    this.clearCache('maintenance');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async getMaintenanceStats() {
@@ -264,14 +413,20 @@ class ApiClient {
   }
 
   async createExpense(data: any) {
-    return this.request<any>('/expenses', {
+    const result = await this.request<any>('/expenses', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('expense');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async deleteExpense(id: string) {
-    return this.request<any>(`/expenses/${id}`, { method: 'DELETE' });
+    const result = await this.request<any>(`/expenses/${id}`, { method: 'DELETE' });
+    this.clearCache('expense');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async getExpensesByCategory(category: string) {
@@ -289,16 +444,21 @@ class ApiClient {
   }
 
   async createUtility(data: any) {
-    return this.request<any>('/utilities', {
+    const result = await this.request<any>('/utilities', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('utility');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async linkUtility(id: string) {
-    return this.request<any>(`/utilities/${id}/link`, {
+    const result = await this.request<any>(`/utilities/${id}/link`, {
       method: 'POST',
     });
+    this.clearCache('utility');
+    return result;
   }
 
   async getUtilityRates() {
@@ -327,21 +487,30 @@ class ApiClient {
   }
 
   async createContract(data: any) {
-    return this.request<any>('/contracts', {
+    const result = await this.request<any>('/contracts', {
       method: 'POST',
       body: JSON.stringify(data),
     });
+    this.clearCache('contract');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async updateContract(id: string, data: any) {
-    return this.request<any>(`/contracts/${id}`, {
+    const result = await this.request<any>(`/contracts/${id}`, {
       method: 'PUT',
       body: JSON.stringify(data),
     });
+    this.clearCache('contract');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async deleteContract(id: string) {
-    return this.request<any>(`/contracts/${id}`, { method: 'DELETE' });
+    const result = await this.request<any>(`/contracts/${id}`, { method: 'DELETE' });
+    this.clearCache('contract');
+    this.clearCache('dashboard');
+    return result;
   }
 
   async getExpiringContracts() {

@@ -77,10 +77,10 @@ export function PublicPaymentPage() {
               if (active) setIsSettling(false);
             }
           } else {
-            // Start polling if not paid and not scanning
+            // Start polling if not paid and not scanning - check every 5 seconds instead of 3
             pollInterval = setInterval(() => {
               fetchInvoice(false);
-            }, 3000);
+            }, 5000);
           }
         }
       } catch (err: any) {

@@ -14,12 +14,19 @@ export function Rooms() {
   const [error, setError] = useState("");
   const [newRoom, setNewRoom] = useState({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
   const [roomTypeFilter, setRoomTypeFilter] = useState<"monthly" | "daily">("monthly");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchRooms = async () => {
+  const fetchRooms = async (forceRefresh: boolean = false) => {
     try {
+      // Force clear cache if requested
+      if (forceRefresh) {
+        api.clearCache('room');
+      }
       const res = await api.getRooms({ limit: "50" });
       setRooms(res.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Error fetching rooms:", err);
+    }
     finally { setLoading(false); }
   };
 
@@ -65,8 +72,12 @@ export function Rooms() {
   const availableRooms = rooms.filter((r: any) => r.status === "vacant").length;
 
   const handleAddRoom = async () => {
-    if (!newRoom.roomNumber.trim() || !newRoom.rent.trim()) return;
+    if (!newRoom.roomNumber.trim() || !newRoom.rent.trim()) {
+      setError("Room Number and Rent are required");
+      return;
+    }
     setError("");
+    setIsSubmitting(true);
     try {
       const payload: any = {
         roomNumber: newRoom.roomNumber,
@@ -87,16 +98,30 @@ export function Rooms() {
       }
 
       await api.createRoom(payload);
+      
+      // Force clear cache and refresh with fresh data
+      await fetchRooms(true);
+      
       setShowAddRoom(false);
       setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" });
-      fetchRooms();
     } catch (err: any) {
-      if (err.errors) {
+      console.error("Room creation error:", err);
+      
+      // Show detailed error message
+      let errorMessage = "Failed to add room";
+      
+      if (err.errors && typeof err.errors === 'object') {
         const errorMsgs = Object.values(err.errors).flat().join(", ");
-        setError(errorMsgs || err.message || "Failed to add room");
-      } else {
-        setError(err.message || "Failed to add room");
+        errorMessage = errorMsgs || err.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
       }
+      
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -229,24 +254,34 @@ export function Rooms() {
         <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-brutal">
             <h3 className="text-xl font-semibold text-foreground mb-4">Add New Room</h3>
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Room Number *</label>
-                <input type="text" placeholder="e.g., 501" value={newRoom.roomNumber}
+                <input 
+                  type="text" 
+                  placeholder="e.g., 501" 
+                  value={newRoom.roomNumber}
                   onChange={(e) => setNewRoom({ ...newRoom, roomNumber: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-2 block">Room Type billing</label>
                 <div className="flex border border-foreground/10 rounded-2xl p-1 bg-muted/20 gap-1 mb-3 bg-background">
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => {
                       setRoomTypeFilter("monthly");
                       setNewRoom(prev => ({ ...prev, roomTypeId: "", rent: "" }));
                     }}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       roomTypeFilter === "monthly"
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -256,11 +291,12 @@ export function Rooms() {
                   </button>
                   <button
                     type="button"
+                    disabled={isSubmitting}
                     onClick={() => {
                       setRoomTypeFilter("daily");
                       setNewRoom(prev => ({ ...prev, roomTypeId: "", rent: "" }));
                     }}
-                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${
+                    className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                       roomTypeFilter === "daily"
                         ? "bg-primary text-primary-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -271,8 +307,11 @@ export function Rooms() {
                 </div>
 
                 <label className="text-sm text-muted-foreground mb-1 block">Select Room Type *</label>
-                <select value={newRoom.roomTypeId} onChange={(e) => handleRoomTypeChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium">
+                <select 
+                  value={newRoom.roomTypeId} 
+                  onChange={(e) => handleRoomTypeChange(e.target.value)}
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed">
                   <option value="">— Select Room Type —</option>
                   {roomTypes.filter((rt: any) => rt.billing_cycle === roomTypeFilter).map((rt: any) => {
                     const priceText = rt.billing_cycle === 'daily'
@@ -293,26 +332,57 @@ export function Rooms() {
                 <label className="text-sm text-muted-foreground mb-1 block">
                   {roomTypeFilter === 'daily' ? "Daily Rent ($) *" : "Monthly Rent ($) *"}
                 </label>
-                <input type="number" placeholder="e.g., 350" value={newRoom.rent}
+                <input 
+                  type="number" 
+                  placeholder="e.g., 350" 
+                  value={newRoom.rent}
                   onChange={(e) => setNewRoom({ ...newRoom, rent: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Capacity</label>
-                <input type="number" min="1" value={newRoom.capacity}
+                <input 
+                  type="number" 
+                  min="1" 
+                  value={newRoom.capacity}
                   onChange={(e) => setNewRoom({ ...newRoom, capacity: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
               </div>
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Amenities (comma-separated)</label>
-                <input type="text" placeholder="e.g., WiFi, AC, Hot Water" value={newRoom.amenities}
+                <input 
+                  type="text" 
+                  placeholder="e.g., WiFi, AC, Hot Water" 
+                  value={newRoom.amenities}
                   onChange={(e) => setNewRoom({ ...newRoom, amenities: e.target.value })}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed" 
+                />
               </div>
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowAddRoom(false); setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" }); setError(""); }}>Cancel</Button>
-              <Button variant="primary" onClick={handleAddRoom}>Add Room</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { 
+                  setShowAddRoom(false); 
+                  setNewRoom({ roomNumber: "", roomTypeId: "", rent: "", capacity: "1", amenities: "" }); 
+                  setError(""); 
+                }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddRoom}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Adding..." : "Add Room"}
+              </Button>
             </div>
           </div>
         </div>

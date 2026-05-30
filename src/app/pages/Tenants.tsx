@@ -30,6 +30,7 @@ export function Tenants() {
   const [loadingRooms, setLoadingRooms] = useState(false);
   const [addRentalTab, setAddRentalTab] = useState<'daily' | 'monthly'>('monthly');
   const [editRentalTab, setEditRentalTab] = useState<'daily' | 'monthly'>('monthly');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddRoomSelect = (roomNumber: string) => {
     setNewTenant(prev => {
@@ -87,11 +88,16 @@ export function Tenants() {
     });
   };
 
-  const fetchTenants = async () => {
+  const fetchTenants = async (forceRefresh: boolean = false) => {
     try {
+      if (forceRefresh) {
+        api.clearCache('tenant');
+      }
       const res = await api.getTenants({ limit: "50" });
       setTenants(res.data || []);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error("Error fetching tenants:", err); 
+    }
     finally { setLoading(false); }
   };
 
@@ -109,15 +115,34 @@ export function Tenants() {
   };
 
   const handleAddTenant = async () => {
-    if (!newTenant.name.trim() || !newTenant.room) return;
+    if (!newTenant.name.trim() || !newTenant.room) {
+      setError("Name and Room are required");
+      return;
+    }
     setError("");
+    setIsSubmitting(true);
     try {
       await api.createTenant(newTenant);
+      
+      // Force clear cache and refresh with fresh data
+      await fetchTenants(true);
+      
       setShowAddTenant(false);
       setNewTenant({ name: "", phone: "", room: "", moveInDate: "", moveOutDate: "", email: "" });
-      fetchTenants();
     } catch (err: any) {
-      setError(err.message || "Failed to add tenant");
+      console.error("Tenant creation error:", err);
+      
+      let errorMessage = "Failed to add tenant";
+      if (err.errors && typeof err.errors === 'object') {
+        const errorMsgs = Object.values(err.errors).flat().join(", ");
+        errorMessage = errorMsgs || err.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -140,6 +165,7 @@ export function Tenants() {
   const handleUpdateTenant = async () => {
     if (!editTenant) return;
     setError("");
+    setIsSubmitting(true);
     try {
       await api.updateTenant(editTenant.id, {
         name: editTenant.name,
@@ -150,12 +176,27 @@ export function Tenants() {
         moveOutDate: editTenant.moveOutDate || null,
         status: editTenant.status,
       });
+      
+      // Force clear cache and refresh with fresh data
+      await fetchTenants(true);
+      
       setShowEditTenant(false);
       setEditTenant(null);
       setSelectedTenant(null);
-      fetchTenants();
     } catch (err: any) {
-      setError(err.message || "Failed to update tenant");
+      console.error("Tenant update error:", err);
+      
+      let errorMessage = "Failed to update tenant";
+      if (err.errors && typeof err.errors === 'object') {
+        const errorMsgs = Object.values(err.errors).flat().join(", ");
+        errorMessage = errorMsgs || err.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -303,7 +344,11 @@ export function Tenants() {
         <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-foreground mb-4">Add New Tenant</h3>
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
             <div className="space-y-4">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Name *</label>
@@ -412,8 +457,20 @@ export function Tenants() {
               )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowAddTenant(false); setError(""); }}>Cancel</Button>
-              <Button variant="primary" onClick={handleAddTenant}>Add Tenant</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { setShowAddTenant(false); setError(""); }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleAddTenant}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Adding..." : "Add Tenant"}
+              </Button>
             </div>
           </div>
         </div>
@@ -424,7 +481,11 @@ export function Tenants() {
         <div className="fixed inset-0 bg-foreground/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card rounded-3xl border border-foreground/10 max-w-lg w-full p-6 shadow-xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-foreground mb-4">Edit Tenant</h3>
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -542,8 +603,20 @@ export function Tenants() {
               )}
             </div>
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => { setShowEditTenant(false); setEditTenant(null); setError(""); }}>Cancel</Button>
-              <Button variant="primary" onClick={handleUpdateTenant}>Save Changes</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { setShowEditTenant(false); setEditTenant(null); setError(""); }}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleUpdateTenant}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Saving..." : "Save Changes"}
+              </Button>
             </div>
           </div>
         </div>

@@ -22,6 +22,7 @@ export function Payments() {
   const [showRecordModal, setShowRecordModal] = useState(false);
   const [error, setError] = useState("");
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Interactive Directory State
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -47,8 +48,11 @@ export function Payments() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (forceRefresh: boolean = false) => {
     try {
+      if (forceRefresh) {
+        api.clearCache('payment');
+      }
       const res = await api.getPayments({ limit: "50" });
       const backendData = res.data || [];
       
@@ -174,10 +178,11 @@ export function Payments() {
     fetchTenants();
     fetchRooms();
 
-    // Poll payments in the background every 4 seconds to instantly detect tenant settles in real-time
+    // Poll payments at a much longer interval (60 seconds) to detect real-time updates
+    // The API client now has caching enabled, so frequent polls are much lighter on performance
     const interval = setInterval(() => {
       fetchPayments();
-    }, 4000);
+    }, 60000); // Changed from 4000ms to 60000ms (60 seconds)
 
     return () => clearInterval(interval);
   }, []);
@@ -221,8 +226,12 @@ export function Payments() {
   };
 
   const handleRecordPayment = async () => {
-    if (!newPayment.tenantId || !newPayment.amount || !newPayment.month) return;
+    if (!newPayment.tenantId || !newPayment.amount || !newPayment.month) {
+      setError("Tenant, Amount, and Month are required");
+      return;
+    }
     setError("");
+    setIsSubmitting(true);
     try {
       await api.createPayment({
         tenantId: newPayment.tenantId,
@@ -233,13 +242,28 @@ export function Payments() {
         utility_amount: 0,
         paidDate: newPayment.status === "paid" ? new Date().toISOString().split("T")[0] : null,
       });
+      
+      // Force clear cache and refresh with fresh data
+      await fetchPayments(true);
+      
       setShowRecordModal(false);
       setNewPayment({
         tenantId: "", amount: "", month: "", paymentMethod: "qr_code", status: "pending", billingCycle: "monthly"
       });
-      fetchPayments();
     } catch (err: any) {
-      setError(err.message || "Failed to record invoice");
+      console.error("Payment creation error:", err);
+      
+      let errorMessage = "Failed to record invoice";
+      if (err.errors && typeof err.errors === 'object') {
+        const errorMsgs = Object.values(err.errors).flat().join(", ");
+        errorMessage = errorMsgs || err.message || errorMessage;
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -486,12 +510,20 @@ export function Payments() {
           <div className="bg-card rounded-3xl border border-foreground/10 max-w-md w-full p-6 shadow-xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-foreground">Issue Room Invoice</h3>
-              <button onClick={() => setShowRecordModal(false)} className="p-1 hover:bg-muted rounded-lg">
+              <button 
+                onClick={() => setShowRecordModal(false)} 
+                disabled={isSubmitting}
+                className="p-1 hover:bg-muted rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 <X className="w-5 h-5 text-muted-foreground" />
               </button>
             </div>
             
-            {error && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">{error}</div>}
+            {error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-300 rounded-lg text-red-700 text-sm font-medium">
+                <strong>Error:</strong> {error}
+              </div>
+            )}
             
             <div className="space-y-4">
               <div>
@@ -499,7 +531,8 @@ export function Payments() {
                 <select 
                   value={newPayment.tenantId} 
                   onChange={(e) => handleTenantSelect(e.target.value)}
-                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium"
+                  disabled={isSubmitting}
+                  className="w-full px-3 py-2 border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <option value="">Select tenant...</option>
                   {tenants.map((t: any) => <option key={t.id} value={t.id}>{t.name} (Room {t.room})</option>)}
@@ -576,8 +609,20 @@ export function Payments() {
             </div>
 
             <div className="mt-6 flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setShowRecordModal(false)}>Cancel</Button>
-              <Button variant="primary" onClick={handleRecordPayment}>Issue Invoice</Button>
+              <Button 
+                variant="outline" 
+                onClick={() => setShowRecordModal(false)}
+                disabled={isSubmitting}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={handleRecordPayment}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? "Issuing..." : "Issue Invoice"}
+              </Button>
             </div>
           </div>
         </div>

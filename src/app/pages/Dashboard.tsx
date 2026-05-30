@@ -53,10 +53,12 @@ export function Dashboard() {
   useEffect(() => {
     fetchData();
 
-    // Poll dashboard data in the background every 4 seconds to instantly reflect paid checkouts
+    // Optional: Poll dashboard data at a much longer interval (60 seconds) instead of every 4 seconds
+    // This is mainly for real-time updates of paid invoices, but the polling is now much lighter
+    // since we have caching enabled in the API client
     const interval = setInterval(() => {
       fetchData();
-    }, 4000);
+    }, 60000); // Changed from 4000ms to 60000ms (60 seconds)
 
     return () => clearInterval(interval);
   }, []);
