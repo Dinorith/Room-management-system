@@ -1,7 +1,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL ||
   (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
     ? '/api'
-    : 'https://room-rent-backend-production.up.railway.app');
+    : 'https://rentflowversion10-production.up.railway.app/api');
 
 class ApiClient {
   private token: string | null = null;
