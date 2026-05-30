@@ -37,12 +37,14 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: 'https://room-rent-backend-production-7530.up.railway.app',
         changeOrigin: true,
+        secure: true,
       },
       '/storage': {
-        target: 'http://127.0.0.1:8000',
+        target: 'https://room-rent-backend-production-7530.up.railway.app',
         changeOrigin: true,
+        secure: true,
       },
     },
   },
