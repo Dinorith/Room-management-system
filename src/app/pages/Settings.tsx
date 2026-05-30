@@ -7,13 +7,22 @@ import RoomTypeService from "../services/RoomTypeService";
 
 const formatQrCodeUrl = (url: string) => {
   if (!url) return "";
-  if (url.startsWith("/storage")) return url;
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1") {
-      return parsed.pathname;
+  
+  // Already a full URL
+  if (url.startsWith("http://") || url.startsWith("https://")) {
+    return url;
+  }
+  
+  // Relative path - resolve to backend storage
+  if (url.startsWith("/storage")) {
+    const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    if (isLocalHost) {
+      return url; // Use dev proxy
     }
-  } catch (e) {}
+    // Production: use full backend URL
+    return `https://room-rent-backend-production-7530.up.railway.app${url}`;
+  }
+  
   return url;
 };
 
