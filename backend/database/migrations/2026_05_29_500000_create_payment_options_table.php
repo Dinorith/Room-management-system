@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('payment_options', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('user_id');
+            $table->unsignedBigInteger('user_id');
             $table->string('payment_type'); // static_qr, bank_transfer, cash
             $table->string('payment_method_name')->nullable(); // For Cash option custom title
             $table->string('bank_name')->nullable();
